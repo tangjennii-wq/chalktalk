@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Chalk Talk · NYU Langone Teaching Generator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f8f7fa;color:#2d2a3e;min-height:100vh}
+.app{max-width:780px;margin:0 auto;padding:24px 16px 60px}
+button{cursor:pointer;font-family:inherit}
+textarea,input[type=text]{font-family:inherit}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border:2.5px solid #e2dfe8;border-top-color:#702b9d;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="app" id="root"></div>
+<script>
+// ═══════════ CONFIG ═══════════
+var MODEL = "claude-haiku-4-5-20251001";
+
+function getClaudeKey(){
+  var k=localStorage.getItem("claude_api_key");
+  if(!k){
+    k=prompt("Enter your Anthropic API key (stored locally in your browser only — never sent anywhere except Anthropic).\n\nGet one at: https://console.anthropic.com/settings/keys\n\nYou need a key with credits or an active plan.");
+    if(k&&k.trim()){localStorage.setItem("claude_api_key",k.trim());return k.trim()}
+    return null;
+  }
+  return k;
+}
+
+// ═══════════ TOPICS ═══════════
+var TOPICS = {
+  "\u2605 Nephrology": { color: "#702b9d", pct: "6% IM", topics: {
+    "Sodium & Water (8%)": ["Hyponatremia: SIADH & Furst ratio","Hyponatremia: Desalination principle","Hyponatremia: Overcorrection & DDAVP clamp","Hypernatremia: Central vs nephrogenic DI","Free water clearance","Beer potomania"],
+    "Acid-Base (9%)": ["Metabolic acidosis: AG vs NAG","RTA Type 1 vs 2 vs 4","Urine anion gap in NAGMA","Hyperkalemia management","Metabolic alkalosis"],
+    "Glomerular (12%)": ["Nephritic syndrome workup","Nephrotic syndrome workup","IgA nephropathy","Lupus nephritis","ANCA vasculitis","Membranous nephropathy","FSGS","TMA: TTP vs HUS vs aHUS"],
+    "CKD (22%)": ["CKD staging & KFRE","RAAS + SGLT2i + finerenone","CKD mineral bone disease","CKD anemia management","Hemodialysis principles","Peritoneal dialysis","Diuretic resistance"],
+    "AKI (15%)": ["AKI: Prerenal vs intrinsic vs postrenal","Hepatorenal syndrome","Rhabdomyolysis","Tumor lysis syndrome","CRRT vs IHD"],
+    "HTN (10%)": ["Resistant hypertension","Primary aldosteronism","Hypertensive emergency"],
+    "Transplant (11%)": ["Post-transplant immunosuppression","Rejection types","BK virus nephropathy"]
+  }},
+  "Cardiovascular (14%)": { color: "#c0392b", pct: "14%", topics: { "Core": ["Heart failure: HFrEF vs HFpEF","ACS: STEMI vs NSTEMI","Atrial fibrillation","Valvular disease","Endocarditis","Syncope workup"]}},
+  "Pulmonary (9%)": { color: "#2980b9", pct: "9%", topics: { "Core": ["COPD management","Asthma stepwise","PE diagnosis & treatment","Pleural effusion","ARDS management"]}},
+  "GI/Hepatology (9%)": { color: "#d35400", pct: "9%", topics: { "Core": ["Cirrhosis complications","Hepatitis B & C","GI bleeding","IBD: Crohn vs UC","C. difficile"]}},
+  "Endocrinology (9%)": { color: "#8e44ad", pct: "9%", topics: { "Core": ["DKA vs HHS","Thyroid disorders","Adrenal insufficiency","Diabetes management","Hypercalcemia"]}},
+  "ID (9%)": { color: "#27ae60", pct: "9%", topics: { "Core": ["Sepsis bundle","HIV management","Meningitis therapy","TB: RIPE therapy"]}},
+  "Heme/Onc (12%)": { color: "#c0392b", pct: "12%", topics: { "Core": ["Anemia workup","TTP/HUS","DIC","DVT/PE anticoagulation","HIT","Oncologic emergencies"]}},
+  "Rheumatology (9%)": { color: "#e67e22", pct: "9%", topics: { "Core": ["RA & DMARDs","SLE","Gout","Vasculitis","Antiphospholipid syndrome"]}},
+  "Neurology (4%)": { color: "#16a085", pct: "4%", topics: { "Core": ["Stroke & tPA","Seizures","Headache","Guillain-Barr\u00e9","Myasthenia gravis"]}}
+};
+
+// ═══════════ GUIDELINE KNOWLEDGE BASE ═══════════
+var GUIDELINES = {
+  "Nephrology": {
+    society: "KDIGO (Kidney Disease: Improving Global Outcomes)",
+    guidelines: [
+      {name:"KDIGO 2024 CKD Evaluation & Management",year:2024,access:"Open (CC BY-NC-ND)",url:"https://kdigo.org/guidelines/ckd-evaluation-and-management/",keys:"CKD staging by eGFRcr-cys + ACR. First-line: RASi (ACEi/ARB) for A3 albuminuria. SGLT2i for CKD with proteinuria ± diabetes (DAPA-CKD, EMPA-KIDNEY). Finerenone (nonsteroidal MRA) for DKD (FIDELIO-DKD, FIGARO-DKD). GLP-1 RA for T2DM+CKD (FLOW trial). Statin for CKD ≥18y (SHARP). Avoid nephrotoxins. KFRE for risk prediction."},
+      {name:"KDIGO 2024 CKD-MBD",year:2024,access:"Open",keys:"Target PTH 2-9× ULN for dialysis. Phosphate lowering diet-first then binders. Active vitamin D for severe/progressive SHPT. Calcimimetics (cinacalcet/etelcalcetide) for refractory. Avoid aluminum binders."},
+      {name:"KDIGO 2024 Blood Pressure in CKD",year:2024,access:"Open",keys:"Target SBP <120 mmHg (SPRINT). RASi first-line for proteinuric CKD. Don't stop RASi for modest eGFR decline or mild hyperkalemia."},
+      {name:"KDIGO 2022 Diabetes in CKD",year:2022,access:"Open",keys:"Metformin + SGLT2i first-line. GLP-1 RA if additional glycemic control needed. A1c target ~6.5-8% individualized. SGLT2i regardless of A1c for kidney protection."},
+      {name:"KDIGO 2021 Glomerulonephritis",year:2021,access:"Open",keys:"Lupus nephritis: MMF+steroids (ALMS, AURA-LV), add belimumab or voclosporin. IgA: supportive+RASi first, SGLT2i; sparsentan (PROTECT). ANCA: rituximab or cyclophosphamide+steroids (RAVE, RITUXVAS), avacopan. MN: anti-PLA2R monitoring, rituximab (MENTOR, STARMEN)."},
+      {name:"KDIGO 2012 AKI (update pending)",year:2012,access:"Open",keys:"RIFLE/AKIN/KDIGO staging. Prerenal vs intrinsic vs postrenal. Avoid nephrotoxins, optimize volume, hold RASi in AKI. RRT indications: refractory hyperkalemia, acidosis, volume overload, uremia, toxins."}
+    ],
+    conferences: ["ASN Kidney Week (Oct, flagship)","NKF Spring Clinical Meetings","ERA Congress (Europe)","ISN World Congress of Nephrology"],
+    trials: ["DAPA-CKD","EMPA-KIDNEY","CREDENCE","FIDELIO-DKD","FIGARO-DKD","FLOW","SPRINT","SHARP","RAVE","MENTOR","AURA-LV","PROTECT","SOS-KI"]
+  },
+  "Cardiovascular": {
+    society: "AHA/ACC (American Heart Association / American College of Cardiology)",
+    guidelines: [
+      {name:"2025 AHA/ACC Hypertension",year:2025,access:"Open",url:"https://www.ahajournals.org/doi/10.1161/CIR.0000000000001356",keys:"BP target <130/80 for most adults (SPRINT). First-line: ACEi/ARB, CCB, thiazide. Resistant HTN: add spironolactone (PATHWAY-2). Screen for secondary causes if onset <30, refractory, or hypokalemia."},
+      {name:"2025 ACC/AHA ACS",year:2025,access:"Open",url:"https://www.ahajournals.org/doi/10.1161/CIR.0000000000001309",keys:"Unified STEMI/NSTEMI guideline. Early invasive strategy for high-risk NSTEMI. DAPT duration individualized. P2Y12 de-escalation strategies. Colchicine post-MI (COLCOT, LoDoCo2)."},
+      {name:"2026 ACC/AHA Dyslipidemia",year:2026,access:"Open",url:"https://www.ahajournals.org/doi/10.1161/CIR.0000000000001423",keys:"High-intensity statin for ASCVD and high-risk primary prevention. LDL goal <55 for very high risk. Add ezetimibe then PCSK9i if not at goal. Bempedoic acid for statin-intolerant. Lp(a) screening."},
+      {name:"2022 AHA/ACC/HFSA Heart Failure",year:2022,access:"Open",keys:"HFrEF GDMT: ARNi/ACEi/ARB + beta-blocker + MRA + SGLT2i (4-pillar). Initiate all early, uptitrate. SGLT2i for HFpEF (EMPEROR-Preserved, DELIVER). IV iron for iron-deficient HF (AFFIRM-AHF). ICD/CRT per EF and QRS."},
+      {name:"2023 ACC/AHA Atrial Fibrillation",year:2023,access:"Open",keys:"CHA₂DS₂-VASc for stroke risk. DOACs preferred over warfarin (RE-LY, ROCKET-AF, ARISTOTLE, ENGAGE). Rate vs rhythm: early rhythm (EAST-AFNET 4). Catheter ablation for symptomatic AF or HFrEF (CASTLE-AF, CABANA)."},
+      {name:"2020 ACC/AHA Valvular Heart Disease",year:2020,access:"Open",keys:"TAVR for severe AS (low/intermediate/high risk: PARTNER, CoreValve). MitraClip for severe MR (COAPT). Endocarditis: modified Duke criteria (2023 update)."}
+    ],
+    conferences: ["AHA Scientific Sessions (Nov)","ACC Annual Scientific Session (Mar-Apr)","ESC Congress (Aug-Sep)","TCT (Oct, interventional)","Heart Rhythm Society (May-Jun)"],
+    trials: ["SPRINT","PARADIGM-HF","DAPA-HF","EMPEROR-Preserved","DELIVER","EAST-AFNET 4","RE-LY","ARISTOTLE","PARTNER","COAPT","COLCOT","LoDoCo2","CASTLE-AF"]
+  },
+  "Pulmonary": {
+    society: "ATS/ERS (American Thoracic Society / European Respiratory Society)",
+    guidelines: [
+      {name:"GOLD 2025 COPD",year:2025,access:"Open (goldcopd.org)",keys:"ABE grouping replaces ABCD. Inhaler step-up: LABA or LAMA → LABA+LAMA → add ICS if eos ≥300. Triple therapy (ETHOS, IMPACT). Roflumilast/azithromycin for frequent exacerbators. Smoking cessation cornerstone."},
+      {name:"GINA 2024 Asthma",year:2024,access:"Open (ginasthma.org)",keys:"Track 1 (preferred): as-needed low-dose ICS-formoterol at all steps. Track 2: SABA+ICS PRN → ICS → ICS-LABA → medium/high ICS-LABA → add-on (tiotropium, anti-IL5, anti-IL4/13, anti-TSLP). Biologic selection by phenotype."},
+      {name:"2025 ATS CAP Update",year:2025,access:"Open",keys:"Shortened antibiotics 3-5 days for non-severe CAP with clinical stability. Lung ultrasound acceptable for diagnosis. Empiric abx for inpatients regardless of severity. Steroids for severe CAP (conditional). Outpatient: amoxicillin or doxycycline (no comorbidities); amox-clav or respiratory FQ (comorbidities)."},
+      {name:"2019 ATS/ERS/JRS/ALAT IPF",year:2019,access:"Open",keys:"Pirfenidone or nintedanib for IPF. No role for combined immunosuppression (PANTHER-IPF harm). Lung transplant referral for progressive disease. Antacid therapy conditional recommendation."},
+      {name:"2019 ESC/ERS Pulmonary Hypertension",year:2019,access:"Open",keys:"Group 1 PAH: ERA + PDE5i upfront combination (AMBITION). Prostacyclin pathway for WHO FC III-IV. Right heart catheterization for diagnosis (mPAP >20). Treat underlying cause for groups 2-5."}
+    ],
+    conferences: ["ATS International Conference (May)","CHEST Annual Meeting (Oct)","ERS International Congress (Sep)"],
+    trials: ["ETHOS","IMPACT","FLAME","PANTHER-IPF","AMBITION","FACETT (ARDS)","PROSEVA (prone)","ACURASYS (NMB in ARDS)","ROSE"]
+  },
+  "GI/Hepatology": {
+    society: "ACG (American College of Gastroenterology) / AASLD (American Association for the Study of Liver Diseases)",
+    guidelines: [
+      {name:"ACG 2021 IBD (Crohn's, UC)",year:2021,access:"Open",keys:"Step-up vs top-down biologics. Anti-TNF (infliximab, adalimumab) for moderate-severe. Vedolizumab (GEMINI), ustekinumab (UNITI). JAKi (tofacitinib) for UC. Therapeutic drug monitoring. Surgery for refractory/complications."},
+      {name:"ACG 2024 Alcohol-Associated Liver Disease",year:2024,access:"Open",keys:"MELD for AH severity (>20 = severe). Prednisolone for severe AH (Maddrey DF ≥32). Lille score at day 7 for steroid response. Abstinence cornerstone. Early transplant for selected non-responders. AUD treatment integration critical."},
+      {name:"AASLD 2024 Portal Hypertension",year:2024,access:"Open",keys:"Baveno VII criteria: LSM <15 kPa + platelets >150k rules out CSPH. NSBB (carvedilol preferred) for CSPH. EVL for secondary prevention. TIPS for refractory ascites/variceal bleeding. Rifaximin + lactulose for hepatic encephalopathy."},
+      {name:"AASLD 2023 NAFLD/MASLD",year:2023,access:"Open",keys:"FIB-4 for initial screening. FIB-4 ≥1.3 → VCTE or ELF. Lifestyle modification for all. Resmetirom (MAESTRO-NASH) FDA-approved for MASH with F2-F3. Pioglitazone for MASH with T2DM. Vitamin E for non-diabetic MASH. GLP-1 RA beneficial."},
+      {name:"ACG 2023 Upper GI Bleeding",year:2023,access:"Open",keys:"Glasgow-Blatchford for risk stratification. Restrictive transfusion (Hb <7). PPI infusion post-endoscopy for high-risk ulcers. Early endoscopy within 24h. Variceal bleeding: octreotide + antibiotics + EVL."},
+      {name:"ACG 2021 C. difficile",year:2021,access:"Open",keys:"Fidaxomicin preferred over vancomycin for initial and recurrent CDI. Bezlotoxumab for high-risk recurrence. FMT for ≥3 recurrences. Stop offending antibiotics. No repeat testing."}
+    ],
+    conferences: ["DDW (Digestive Disease Week, May)","ACG Annual Meeting (Oct)","AASLD The Liver Meeting (Nov)","UEG Week (Europe, Oct)"],
+    trials: ["GEMINI","UNITI","MAESTRO-NASH","REGENERATE","STOP-IT","SONIC","OCTAVE"]
+  },
+  "Endocrinology": {
+    society: "ADA (American Diabetes Association) / Endocrine Society",
+    guidelines: [
+      {name:"ADA Standards of Care 2025",year:2025,access:"Open (diabetesjournals.org)",keys:"A1c target <7% most adults. Metformin + SGLT2i or GLP-1 RA early for T2DM with CVD/CKD/HF regardless of A1c. Tirzepatide (SURPASS, SURMOUNT). CGM for all insulin-treated. Time-in-range targets. Comprehensive CV risk management."},
+      {name:"ADA/EASD 2022 T2DM Hyperglycemia Management",year:2022,access:"Open",keys:"Cardiorenal-metabolic prioritization. SGLT2i for HF or CKD. GLP-1 RA for ASCVD. Weight management integration. De-prescribing sulfonylureas when possible. Insulin: basal first, consider GLP-1 RA before basal-bolus."},
+      {name:"2024 ATA Thyroid Nodules",year:2024,access:"Open",keys:"US-based risk stratification (TI-RADS/ATA). FNA for suspicious nodules >1cm. Bethesda classification. Molecular testing for indeterminate cytology. Active surveillance option for low-risk papillary microcarcinoma."},
+      {name:"Endocrine Society 2016 Adrenal Insufficiency",year:2016,access:"Open",keys:"Hydrocortisone 15-25mg/day in 2-3 divided doses. Stress dosing for illness/surgery. Fludrocortisone for primary AI. Medic alert bracelet. Cosyntropin stimulation test for diagnosis (cortisol <18 = insufficient)."}
+    ],
+    conferences: ["ADA Scientific Sessions (Jun)","ENDO (Endocrine Society, Mar)","EASD Annual Meeting (Sep)","AACE Annual Meeting"],
+    trials: ["SURPASS","SURMOUNT","EMPA-REG OUTCOME","LEADER","SUSTAIN","SELECT","CREDENCE","ACCORD","ADVANCE","DCCT/EDIC"]
+  },
+  "ID": {
+    society: "IDSA (Infectious Diseases Society of America)",
+    guidelines: [
+      {name:"ATS/IDSA 2019 CAP (+2025 update)",year:2019,access:"Open",keys:"See Pulmonary section. Empiric abx by setting and severity. Respiratory FQ or β-lactam + macrolide for inpatient non-severe."},
+      {name:"IDSA 2016 HAP/VAP",year:2016,access:"Open",keys:"Empiric anti-pseudomonal β-lactam ± vancomycin/linezolid for MRSA risk. 7-day courses adequate for most. De-escalate by culture. Avoid routine combination therapy without risk factors."},
+      {name:"IDSA 2018 C. difficile",year:2018,access:"Open",keys:"See GI section. Fidaxomicin preferred."},
+      {name:"IDSA 2023 HIV Primary Care",year:2023,access:"Open",keys:"Integrase inhibitor-based ART for all (bictegravir/TAF/FTC or dolutegravir-based). Start ART same-day/rapid. U=U (undetectable = untransmittable). PrEP: TDF/FTC, TAF/FTC, or CAB-LA (PURPOSE). Opportunistic infection prophylaxis by CD4 thresholds."},
+      {name:"AHA/IDSA 2023 Infective Endocarditis",year:2023,access:"Open",keys:"Modified Duke criteria (2023 update adds PET/CT). Blood cultures ×3 before abx. Empiric: vancomycin + ceftriaxone or anti-staph β-lactam. Surgery for HF, uncontrolled infection, embolic risk. POET trial: IV-to-PO switch for stable left-sided IE."},
+      {name:"IDSA/ATS 2024 TB",year:2024,access:"Open",keys:"RIPE: rifampin, isoniazid, pyrazinamide, ethambutol. 2 months intensive + 4 months continuation. 3HP or 4R for LTBI. Hepatotoxicity monitoring."},
+      {name:"SSC 2021 Sepsis/Septic Shock",year:2021,access:"Open",keys:"Hour-1 bundle: lactate, blood cultures, broad-spectrum abx, 30mL/kg crystalloid for hypotension, vasopressors for MAP <65. Norepinephrine first-line. Corticosteroids for refractory shock. Reassess volume responsiveness."}
+    ],
+    conferences: ["IDWeek (Oct)","CROI (Feb-Mar)","ECCMID (Apr)","ASM Microbe (Jun)"],
+    trials: ["POET","ARREST","ProACT","ACORN","PURPOSE (PrEP)","PARTNER","START"]
+  },
+  "Heme/Onc": {
+    society: "ASH (American Society of Hematology) / ASCO / NCCN",
+    guidelines: [
+      {name:"ASH 2020 VTE Treatment",year:2020,access:"Open",keys:"DOACs (apixaban, rivarelbau) preferred over warfarin for most VTE. Cancer-associated VTE: LMWH or edoxaban/rivaroxaban (Hokusai-VTE Cancer, SELECT-D). Duration: provoked 3mo, unprovoked ≥3mo with reassessment. HIT: argatroban or bivalirudin, then DOAC."},
+      {name:"NCCN Guidelines (88 cancer types)",year:2026,access:"Free account (nccn.org)",keys:"Continuously updated cancer treatment algorithms. Evidence blocks for efficacy, safety, quality of evidence, consistency, affordability. Disease-specific: staging, workup, systemic therapy, radiation, surgery, surveillance."},
+      {name:"ASCO/NCCN Supportive Care",year:2024,access:"Open",keys:"Antiemetics by emetogenic risk. G-CSF for high-risk febrile neutropenia. Oncologic emergencies: tumor lysis (rasburicase), SVC syndrome, spinal cord compression, hypercalcemia (zoledronic acid, denosumab)."},
+      {name:"ASH 2024 Sickle Cell",year:2024,access:"Open",keys:"Hydroxyurea for all (including children). L-glutamine, crizanlizumab, voxelotor. Gene therapy (exagamglogene/lovotibeglogene). Transfusion for acute chest, stroke prevention."},
+      {name:"ASH 2018 ITP",year:2018,access:"Open",keys:"First-line: steroids (dexamethasone or prednisone). Second-line: TPO-RA (eltrombopag, romiplostim), rituximab, splenectomy. Fostamatinib for refractory. IVIG/anti-D for urgent bleeding."}
+    ],
+    conferences: ["ASH Annual Meeting (Dec)","ASCO Annual Meeting (Jun)","EHA Congress (Jun)","ISTH Congress","ASH Highlights/Hematology"],
+    trials: ["Hokusai-VTE Cancer","SELECT-D","CATCH","CASSINI","CLOT"]
+  },
+  "Rheumatology": {
+    society: "ACR (American College of Rheumatology) / EULAR",
+    guidelines: [
+      {name:"ACR 2021 RA",year:2021,access:"Open",keys:"Treat-to-target: methotrexate first-line. If inadequate: add/switch to biologic DMARD (anti-TNF, abatacept, tocilizumab) or JAKi (tofacitinib, upadacitinib, baricitinib). JAKi boxed warning for VTE/MACE/malignancy in >65. Taper glucocorticoids aggressively."},
+      {name:"ACR/EULAR 2019 SLE",year:2019,access:"Open",keys:"Hydroxychloroquine for all (retinal screening). Belimumab, anifrolumab for active disease. Lupus nephritis: see KDIGO. Minimize glucocorticoids (target ≤5mg/day). Anti-dsDNA and complement for monitoring."},
+      {name:"ACR 2020 Gout",year:2020,access:"Open",keys:"Allopurinol first-line ULT (start low, titrate to target urate <6). Febuxostat if allopurinol-intolerant/allergic (CARES: CV signal). Colchicine + NSAID or steroid for flare. Anti-IL-1 (anakinra) for refractory flares. Pegloticase for tophaceous refractory."},
+      {name:"ACR/VF 2021 ANCA Vasculitis",year:2021,access:"Open",keys:"Remission induction: rituximab (RAVE) or cyclophosphamide + glucocorticoids. Avacopan as glucocorticoid-sparing (ADVOCATE). Maintenance: rituximab preferred over azathioprine (MAINRITSAN). Plasma exchange for severe renal disease (PEXIVAS: less benefit than expected)."},
+      {name:"ACR 2024 ILD Screening in SARD",year:2024,access:"Open",keys:"Systematic screening for ILD in SSc, myositis, RA, MCTD. HRCT for diagnosis. PFTs for monitoring. Nintedanib or mycophenolate for progressive fibrosing ILD (INBUILD, SLS-II)."}
+    ],
+    conferences: ["ACR Convergence (Nov)","EULAR Congress (Jun)"],
+    trials: ["RAVE","ADVOCATE","MAINRITSAN","PEXIVAS","ORAL Surveillance","CARES","SLS-II","INBUILD"]
+  },
+  "Neurology": {
+    society: "AAN (American Academy of Neurology) / AHA/ASA (stroke)",
+    guidelines: [
+      {name:"2024 AHA/ASA Stroke",year:2024,access:"Open",keys:"IV alteplase within 4.5h (NINDS, ECASS-III). Thrombectomy for LVO up to 24h (DAWN, DEFUSE 3). BP target <185/110 pre-lysis. Dual antiplatelet 21 days for minor stroke/TIA (CHANCE, POINT). Statins post-stroke."},
+      {name:"AAN 2022 Epilepsy",year:2022,access:"Open",keys:"Levetiracetam, lamotrigine, or oxcarbazepine first-line for focal. Valproate or levetiracetam for generalized. Status: benzos → fosphenytoin/levetiracetam/valproate → anesthetics. Cannabidiol for Dravet/Lennox-Gastaut. Cenobamate for refractory focal."},
+      {name:"AAN 2021 Myasthenia Gravis",year:2021,access:"Open",keys:"AChEi (pyridostigmine) first. Immunosuppression: steroids + steroid-sparing (azathioprine, mycophenolate). Refractory: eculizumab, ravulizumab (complement), efgartigimod (FcRn). Thymectomy for thymoma or anti-AChR+ generalized MG (MGTX). Crisis: IVIG or PLEX."},
+      {name:"AAN 2019 Headache",year:2019,access:"Open",keys:"Migraine acute: triptans first-line, gepants (ubrogepant, rimegepant). Preventive: topiramate, valproate, propranolol, amitriptyline. CGRP mAbs (erenumab, fremanezumab, galcanezumab). Chronic migraine: onabotulinum toxin A."}
+    ],
+    conferences: ["AAN Annual Meeting (Apr)","International Stroke Conference (Feb)","AES Annual Meeting (Dec)","ECTRIMS (MS, Sep-Oct)"],
+    trials: ["DAWN","DEFUSE 3","CHANCE","POINT","MGTX","NINDS tPA"]
+  },
+  "Critical Care": {
+    society: "SCCM (Society of Critical Care Medicine)",
+    guidelines: [
+      {name:"SSC 2021 Sepsis & Septic Shock",year:2021,access:"Open",keys:"Hour-1 bundle (see ID). Balanced crystalloids (LR) preferred (SMART, BaSICS). Norepinephrine first-line vasopressor → add vasopressin → then epinephrine or dobutamine for cardiac dysfunction. Hydrocortisone 200mg/day IV for refractory shock. Avoid fluid overload; dynamic measures of responsiveness."},
+      {name:"ATS/ESICM 2024 ARDS",year:2024,access:"Open",keys:"Berlin definition (mild/moderate/severe by P/F). Low tidal volume 6mL/kg IBW (ARDSNet). Prone positioning for P/F <150 (PROSEVA). Conservative fluid strategy (FACETT). Neuromuscular blockade early (ACURASYS vs ROSE). Dexamethasone for moderate-severe (DEXA-ARDS, CoDEX). ECMO for refractory (EOLIA)."},
+      {name:"PADIS 2018 Pain/Agitation/Delirium",year:2018,access:"Open",keys:"Pain-first approach. Target light sedation (RASS 0 to -1). Propofol or dexmedetomidine preferred over benzodiazepines. Delirium screening (CAM-ICU). Avoid benzos for delirium prevention. Early mobility. Sleep promotion. Antipsychotics: limited role (MIND-USA)."}
+    ],
+    conferences: ["SCCM Critical Care Congress (Jan-Feb)","ESICM LIVES (Oct)","ATS (pulm/crit, May)","CHEST (Oct)"],
+    trials: ["ARDSNet ARMA","PROSEVA","FACETT","ACURASYS","ROSE","EOLIA","SMART","BaSICS","MIND-USA","CoDEX"]
+  }
+};
+
+// ═══════════ GUIDELINE LOOKUP ═══════════
+function getGuidelinesForTopic(topic) {
+  if (!topic) return null;
+  var t = topic.toLowerCase();
+  var matched = [];
+  // map topic keywords to specialties
+  var kwMap = {
+    "Nephrology": ["kidney","renal","nephro","ckd","aki","gfr","dialysis","transplant","glomerul","nephrotic","nephritic","proteinuria","creatinine","urine","sodium","hyponatremia","hypernatremia","potassium","hyperkalemia","acid-base","rta","metabolic acidosis","metabolic alkalosis","diuretic","furst","siadh","beer potomania","rhabdomyolysis","tumor lysis","hepatorenal","crrt","ihd","peritoneal","fistula","raas","sglt2","finerenone","aldosteronism"],
+    "Cardiovascular": ["heart","cardiac","cardio","hf ","hfref","hfpef","acs","stemi","nstemi","atrial fib","af ","afib","valve","valvular","endocarditis","syncope","hypertension","htn","blood pressure","dyslipidemia","cholesterol","statin","anticoagul","warfarin","doac","chads"],
+    "Pulmonary": ["copd","asthma","lung","pulmonary","pneumonia","cap ","hap ","vap","ards","pleural","pe ","pulmonary embolism","ild","ipf","pulmonary hypertension","oxygen","ventilat","intubat","bronch"],
+    "GI/Hepatology": ["liver","hepat","cirrhosis","varices","ascites","nafld","masld","nash","mash","gi bleed","ibd","crohn","colitis","c diff","cdiff","pancreat","gi ","gastro","esophag","celiac","barrett"],
+    "Endocrinology": ["diabet","dka","hhs","insulin","a1c","thyroid","hypothyroid","hyperthyroid","adrenal","cortisol","addison","cushing","pheochrom","calcium","hypercalcemia","pth","osteoporosis","pituitary","prolactin"],
+    "ID": ["infect","sepsis","septic","hiv","aids","antibiotic","meningitis","tuberculosis","tb ","ripe","mrsa","vre","uti","endocarditis","pneumonia","fever","neutropenic"],
+    "Heme/Onc": ["anemia","iron","b12","folate","sickle","thalassemia","ttp","hus","dic","platelet","thrombocytopenia","hit","dvt","vte","anticoagul","lymphoma","leukemia","myeloma","oncolog","cancer","malignancy","febrile neutropenia"],
+    "Rheumatology": ["rheumat","arthritis","lupus","sle","gout","vasculitis","anca","scleroderma","myositis","antiphospholipid","dmard","biologic","autoimmune"],
+    "Neurology": ["stroke","tpa","thrombectomy","seizure","epilepsy","headache","migraine","guillain","myasthenia","ms ","multiple sclerosis","neuropathy","parkinson","dementia"],
+    "Critical Care": ["icu","critical care","ventilat","ards","sepsis","septic shock","vasopressor","norepinephrine","intubat","prone","sedation","delirium","rass","crrt"]
+  };
+  for (var spec in kwMap) {
+    var kws = kwMap[spec];
+    for (var ki = 0; ki < kws.length; ki++) {
+      if (t.indexOf(kws[ki]) >= 0 && matched.indexOf(spec) < 0) {
+        matched.push(spec);
+        break;
+      }
+    }
+  }
+  if (matched.length === 0) {
+    // try category match from TOPICS structure
+    for (var cat in TOPICS) {
+      var subs = TOPICS[cat].topics;
+      for (var sub in subs) {
+        for (var ti = 0; ti < subs[sub].length; ti++) {
+          if (subs[sub][ti] === topic) {
+            var cleanCat = cat.replace(/★\s*/,"").replace(/\s*\(\d+%.*\)/,"").trim();
+            if (cleanCat === "★ Nephrology" || cleanCat === "Nephrology" || cat.indexOf("Nephrology") >= 0) matched.push("Nephrology");
+            else if (cat.indexOf("Cardiovascular") >= 0) matched.push("Cardiovascular");
+            else if (cat.indexOf("Pulmonary") >= 0) matched.push("Pulmonary");
+            else if (cat.indexOf("GI") >= 0) matched.push("GI/Hepatology");
+            else if (cat.indexOf("Endocrin") >= 0) matched.push("Endocrinology");
+            else if (cat.indexOf("ID") >= 0) matched.push("ID");
+            else if (cat.indexOf("Heme") >= 0) matched.push("Heme/Onc");
+            else if (cat.indexOf("Rheum") >= 0) matched.push("Rheumatology");
+            else if (cat.indexOf("Neuro") >= 0) matched.push("Neurology");
+          }
+        }
+      }
+    }
+  }
+  if (matched.length === 0) return null;
+  var result = { specialties: matched, context: "", sources: [], trials: [], conferences: [] };
+  for (var mi = 0; mi < matched.length; mi++) {
+    var g = GUIDELINES[matched[mi]];
+    if (!g) continue;
+    result.context += "\n\n[" + g.society + " Guidelines]\n";
+    for (var gi = 0; gi < g.guidelines.length; gi++) {
+      var gl = g.guidelines[gi];
+      result.context += "• " + gl.name + " (" + gl.year + ", " + gl.access + "): " + gl.keys + "\n";
+      result.sources.push(gl.name + " (" + gl.year + ")");
+    }
+    result.trials = result.trials.concat(g.trials || []);
+    result.conferences = result.conferences.concat(g.conferences || []);
+  }
+  return result;
+}
+
+var LECTURE_PROMPT = 'Internal Medicine educator (general IM across all subspecialties: cardiology, pulmonary, GI/hepatology, endocrine, ID, heme/onc, rheum, neuro, nephrology, critical care). Identify the relevant specialty from the topic and teach from that field. Default to general IM reasoning unless a specialty is explicitly stated; do NOT default to nephrology. 10-min chalk talk. Physiology first. CRITICAL: When GUIDELINE REFERENCE CONTEXT is provided below, you MUST anchor your treatment recommendations and board tips to those specific guideline recommendations and cite the specific guideline name and year (e.g., "per KDIGO 2024" or "per 2022 AHA/ACC/HFSA"). Also cite the landmark trials listed. Include treatment per the guideline society appropriate to the topic (AHA/ACC cardio, ATS/ERS pulm, ACG/AASLD GI/liver, ADA endo, IDSA ID, ASH heme, ASCO/NCCN onc, ACR rheum, AAN neuro, KDIGO nephro, SCCM ICU). 3-4 sections. ONLY JSON:\n{"title":"","subtitle":"","guideline_sources":[""],"sections":[{"heading":"","minutes":"2-3 min","points":[""],"teaching_pearl":"","board_tip":""}],"summary_points":[""],"visual_memory_card":{"top_left":"","top_right":"","bottom_left":"","bottom_right":"","center":""}}';
+var BOARDS_PROMPT = 'ABIM board-question writer for general Internal Medicine (all subspecialties). Match the question to whatever specialty the topic belongs to; do NOT default to nephrology unless the topic is clearly renal. CRITICAL: When GUIDELINE REFERENCE CONTEXT is provided below, anchor the correct answer, explanation, and board pearls to those specific guideline recommendations. Cite guideline name and year in the explanation. UWorld-style vignette with stem, 5 choices A-E (one correct), explanation, why wrong answers wrong, 5 board pearls, teaching points. ONLY JSON:\n{"title":"","subtitle":"","guideline_sources":[""],"question":{"stem":"","choices":[{"letter":"A","text":"","correct":false},{"letter":"B","text":"","correct":true},{"letter":"C","text":"","correct":false},{"letter":"D","text":"","correct":false},{"letter":"E","text":"","correct":false}],"correct_letter":"B","explanation":"","wrong_explanations":[{"letter":"A","why":""},{"letter":"C","why":""},{"letter":"D","why":""},{"letter":"E","why":""}]},"board_pearls":["","","","",""],"teaching_points":["","",""],"summary_points":[""],"visual_memory_card":{"top_left":"","top_right":"","bottom_left":"","bottom_right":"","center":""}}';
+
+// ═══════════ STATE ═══════════
+var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null };
+var loadTimer = null;
+
+// ═══════════ UTILS ═══════════
+function esc(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+function fixJSON(raw) {
+  var t = raw.replace(/```json/g,"").replace(/```/g,"").trim();
+  try { return JSON.parse(t), t; } catch(e) {}
+  if (!t.endsWith("}")) { var idx = t.lastIndexOf("}"); if (idx > 0) t = t.substring(0, idx + 1); }
+  try { return JSON.parse(t), t; } catch(e) {}
+  var tryPoints = [];
+  for (var i = t.length - 1; i > t.length * 0.3; i--) {
+    if (t[i]==="}"||t[i]==="]"||t[i]==='"') tryPoints.push(i);
+  }
+  for (var p = 0; p < tryPoints.length && p < 40; p++) {
+    var attempt = t.substring(0, tryPoints[p] + 1).replace(/,\s*$/,"");
+    var ob=(attempt.match(/{/g)||[]).length-(attempt.match(/}/g)||[]).length;
+    var sb=(attempt.match(/\[/g)||[]).length-(attempt.match(/\]/g)||[]).length;
+    for(var k=0;k<sb;k++) attempt+="]";
+    for(var k2=0;k2<ob;k2++) attempt+="}";
+    ob=(attempt.match(/{/g)||[]).length-(attempt.match(/}/g)||[]).length;
+    for(var k3=0;k3<ob;k3++) attempt+="}";
+    try { return JSON.parse(attempt), attempt; } catch(e2) {}
+  }
+  return t;
+}
+
+function wrapText(text,max){if(!text||text.length<=max)return[text||""];var w=text.split(" "),l=[],c="";for(var i=0;i<w.length;i++){if((c+" "+w[i]).trim().length>max&&c){l.push(c.trim());c=w[i]}else c=(c+" "+w[i]).trim()}if(c)l.push(c.trim());return l.slice(0,3)}
+
+function autoLayout(nodes,arrows){
+  var inc={};for(var i=0;i<arrows.length;i++)inc[arrows[i].to]=true;
+  var root=null;
+  for(var i2=0;i2<nodes.length;i2++){if(nodes[i2].type==="title"){root=nodes[i2].id;break}}
+  if(!root){for(var i3=0;i3<nodes.length;i3++){if(!inc[nodes[i3].id]){root=nodes[i3].id;break}}}
+  if(!root)root=nodes[0].id;
+  var ch={};for(var i4=0;i4<nodes.length;i4++)ch[nodes[i4].id]=[];
+  for(var i5=0;i5<arrows.length;i5++){if(ch[arrows[i5].from])ch[arrows[i5].from].push(arrows[i5].to)}
+  var layers={},vis={},q=[{id:root,layer:0}];vis[root]=true;
+  while(q.length>0){var cur=q.shift();if(!layers[cur.layer])layers[cur.layer]=[];layers[cur.layer].push(cur.id);var c2=ch[cur.id]||[];for(var ci=0;ci<c2.length;ci++){if(!vis[c2[ci]]){vis[c2[ci]]=true;q.push({id:c2[ci],layer:cur.layer+1})}}}
+  for(var i6=0;i6<nodes.length;i6++){if(!vis[nodes[i6].id]){var ml=Object.keys(layers).length;if(!layers[ml])layers[ml]=[];layers[ml].push(nodes[i6].id)}}
+  var tl=Object.keys(layers).length;
+  var lk=Object.keys(layers).sort(function(a,b){return parseInt(a)-parseInt(b)});
+  for(var li=0;li<lk.length;li++){var layer=parseInt(lk[li]);var items=layers[lk[li]];for(var ii=0;ii<items.length;ii++){var ni=nodes.findIndex(function(n){return n.id===items[ii]});if(ni>=0){nodes[ni].x=items.length===1?0.5:0.12+(ii/(items.length-1))*0.76;nodes[ni].y=tl===1?0.5:0.08+(layer/Math.max(tl-1,1))*0.84}}}
+}
+
+// ═══════════ API ═══════════
+async function callAPI(sys, content, maxTok) {
+  var key = getClaudeKey();
+  if (!key) throw new Error("Anthropic API key required. Reload and try again.");
+  var r = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:MODEL,max_tokens:maxTok,system:sys,messages:[{role:"user",content:content}]})
+  });
+  if(!r.ok){var e={};try{e=await r.json()}catch(x){}
+    if(r.status===401||r.status===403){localStorage.removeItem("claude_api_key");throw new Error("Invalid API key (cleared). Click Generate to re-enter.")}
+    throw new Error(e.error?.message||"API "+r.status)}
+  var d=await r.json();var txt="";for(var i=0;i<(d.content||[]).length;i++){if(d.content[i].type==="text")txt+=d.content[i].text}return txt;
+}
+
+// ═══════════ ACTIONS ═══════════
+async function generate(){
+  if(!S.topic.trim()||S.loading)return;
+  S.loading=true;S.error="";S.loadSec=0;S.loadMsg="Analyzing topic...";S.talk=null;S.sec=0;S.dg=null;S.dgErr="";S.podScript="";S.podPlaying=false;S.podShow=false;S.showAns=false;S.userPick="";speechSynthesis.cancel();render();
+  loadTimer=setInterval(function(){S.loadSec++;var msgs=["Analyzing topic...","Loading guidelines...","Cross-referencing societies...","Building content...","Adding pearls...","Citing trials...","Formatting...","Almost there..."];S.loadMsg=msgs[Math.min(Math.floor(S.loadSec/2.5),msgs.length-1)];render()},1000);
+  try{
+    var glRef = getGuidelinesForTopic(S.topic);
+    var guidelineContext = "";
+    if (glRef) {
+      guidelineContext = "\n\n═══ GUIDELINE REFERENCE CONTEXT (use this to anchor your recommendations) ═══" + glRef.context;
+      if (glRef.trials.length > 0) guidelineContext += "\nLandmark trials to cite when relevant: " + glRef.trials.join(", ");
+      guidelineContext += "\n═══ END GUIDELINE CONTEXT ═══";
+    }
+    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + guidelineContext + '\nONLY JSON.'}];
+    var sys=S.style==="boards"?BOARDS_PROMPT:LECTURE_PROMPT;
+    var txt=await callAPI(sys,uc,6144);
+    if(!txt.trim())throw new Error("Empty response");
+    S.talk=JSON.parse(fixJSON(txt));S.sec=0;S.dg=null;S.dgErr="";S.podScript="";
+    // Store matched guideline info for display
+    if (glRef) { S.glRef = glRef; } else { S.glRef = null; }
+  }catch(e){S.error=e.message}
+  clearInterval(loadTimer);S.loading=false;render();
+  if(S.talk&&S.wantPod)genPodcast();
+}
+
+function getGeminiKey(){
+  var k=localStorage.getItem("gemini_api_key");
+  if(!k){
+    k=prompt("Enter your Google Gemini API key (stored locally in your browser only).\n\nGet one free at: https://aistudio.google.com/apikey");
+    if(k&&k.trim()){localStorage.setItem("gemini_api_key",k.trim());return k.trim()}
+    return null;
+  }
+  return k;
+}
+async function genDiagram(){
+  if(!S.talk||S.dgBusy)return;
+  S.dgBusy=true;S.dgErr="";render();
+  var parts=["Title: "+S.talk.title];
+  if(S.talk.sections)parts.push("Key concepts: "+S.talk.sections.map(function(s){return s.heading}).join(", "));
+  if(S.talk.board_pearls)parts.push("Pearls: "+S.talk.board_pearls.slice(0,4).join("; "));
+  if(S.talk.teaching_points)parts.push("Teaching: "+S.talk.teaching_points.slice(0,3).join("; "));
+  var sm=parts.join(". ");
+
+  if(S.dgMode==="svg"){
+    // SVG flowchart via Claude (no API key needed)
+    try{
+      var txt=await callAPI('Whiteboard diagram JSON: {"nodes":[{"id":"n1","label":"Label","type":"title"}],"arrows":[{"from":"n1","to":"n2"}]}. 5-7 nodes max. Types: title, box, accent, formula, warning. No x/y coordinates.',"Diagram for: "+sm,1000);
+      var p=JSON.parse(fixJSON(txt));
+      if(p.nodes&&p.nodes.length>0){autoLayout(p.nodes,p.arrows||[]);S.dg={svg:p}}
+      else throw new Error("No nodes returned");
+    }catch(e){S.dgErr="Failed: "+e.message}
+    S.dgBusy=false;render();
+    return;
+  }
+
+  // AI illustration via Gemini Nano Banana 2
+  var key=getGeminiKey();
+  if(!key){S.dgErr="Gemini API key required (or switch to Simple Diagram)";S.dgBusy=false;render();return}
+  try{
+    var imgPrompt="Create a clean, educational medical illustration for a teaching chalk talk on this topic. Style: textbook-quality medical diagram, clear labels, white or light background, minimal colors (purples, blues, grays, accent red for pathology). Include anatomic structures, pathways, or mechanisms relevant to the topic. Labels should be crisp and readable. No photorealism \u2014 aim for a clean didactic illustration style like a USMLE review book or First Aid figure.\n\nTopic context: "+sm;
+    var res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key="+encodeURIComponent(key),{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        contents:[{parts:[{text:imgPrompt}]}],
+        generationConfig:{
+          responseModalities:["TEXT","IMAGE"],
+          imageConfig:{aspectRatio:"16:9",imageSize:"1K"}
+        }
+      })
+    });
+    if(!res.ok){
+      var errTxt=await res.text();
+      if(res.status===400||res.status===401||res.status===403){
+        localStorage.removeItem("gemini_api_key");
+        throw new Error("API key rejected ("+res.status+"). Cleared \u2014 try again to re-enter.");
+      }
+      throw new Error("Gemini API "+res.status+": "+errTxt.slice(0,200));
+    }
+    var data=await res.json();
+    var imgB64=null;
+    if(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts){
+      for(var pi=0;pi<data.candidates[0].content.parts.length;pi++){
+        var pt=data.candidates[0].content.parts[pi];
+        if(pt.inlineData&&pt.inlineData.data){imgB64=pt.inlineData.data;break}
+        if(pt.inline_data&&pt.inline_data.data){imgB64=pt.inline_data.data;break}
+      }
+    }
+    if(!imgB64)throw new Error("No image returned. Check that the Image model is enabled for your key.");
+    S.dg={imgB64:imgB64};
+  }catch(e){S.dgErr="Failed: "+e.message}
+  S.dgBusy=false;render();
+}
+
+async function sendChat(){
+  if(!S.chatIn.trim()||S.chatBusy)return;
+  var msg=S.chatIn.trim();S.chatIn="";S.chatBusy=true;S.msgs.push({r:"u",t:msg});render();
+  try{
+    if(S.talk){
+      var txt=await callAPI("Modify this content. Current JSON:\n"+JSON.stringify(S.talk)+"\n\nApply changes, return COMPLETE updated JSON same schema. ONLY JSON.",msg,6144);
+      try{var upd=JSON.parse(fixJSON(txt));if(upd&&upd.title){S.talk=upd;S.sec=0;S.dg=null;S.msgs.push({r:"a",t:"\u2713 Updated!"})}else S.msgs.push({r:"a",t:txt.slice(0,400)})}catch(e2){S.msgs.push({r:"a",t:txt.slice(0,400)})}
+    }else{S.topic=msg;S.msgs.push({r:"a",t:'Topic set to "'+msg+'". Hit Generate!'})}
+  }catch(e){S.msgs.push({r:"a",t:"Error: "+e.message})}
+  S.chatBusy=false;render();
+}
+
+async function genPodcast(){
+  if(!S.talk||S.podBusy)return;S.podBusy=true;render();
+  try{
+    var c="";
+    if(S.talk.sections){c="Title: "+S.talk.title+"\n";var ss=S.talk.sections;for(var i=0;i<ss.length;i++)c+="Section: "+ss[i].heading+". "+((ss[i].points||[]).join(". "))+". Pearl: "+(ss[i].teaching_pearl||"")+"\n";c+="Takeaways: "+(S.talk.summary_points||[]).join(". ")}
+    else if(S.talk.question){c="Title: "+S.talk.title+"\nQ: "+S.talk.question.stem+"\nAnswer: "+S.talk.question.correct_letter+". "+S.talk.question.explanation+"\nPearls: "+(S.talk.board_pearls||[]).join(". ")}
+    var txt=await callAPI("Convert to a 1-2 min conversational podcast for internal medicine doctors. Warm, plain text only.",c,1500);
+    S.podScript=txt.trim();
+  }catch(e){S.podScript="Error: "+e.message}
+  S.podBusy=false;render();
+}
+
+function playPod(){
+  if(!S.podScript)return;
+  if(S.podPlaying){speechSynthesis.cancel();S.podPlaying=false;render();return}
+  var u=new SpeechSynthesisUtterance(S.podScript);u.rate=S.podRate;u.pitch=1;
+  u.onend=function(){S.podPlaying=false;render()};
+  speechSynthesis.cancel();speechSynthesis.speak(u);S.podPlaying=true;render();
+}
+
+async function submitFeedback(){
+  if(!S.feedbackText.trim()||!S.talk||S.feedbackBusy)return;
+  S.feedbackBusy=true;render();
+  try{
+    var txt=await callAPI(
+      "You are an ABIM board question writer. The user disagrees with this question's answer. Review their feedback and regenerate a CORRECTED version of the entire question. Fix the answer if the user is right. Keep the same JSON schema. ONLY JSON, no backticks.\n\nCurrent question JSON:\n"+JSON.stringify(S.talk),
+      "FEEDBACK: "+S.feedbackText+"\n\nPlease review and correct the question, answer, and explanation based on this feedback. Return the complete corrected JSON.",
+      6144
+    );
+    var parsed=JSON.parse(fixJSON(txt));
+    if(parsed&&parsed.title){S.talk=parsed;S.showAns=false;S.userPick="";S.showFeedback=false;S.feedbackText="";S.podScript="";S.msgs.push({r:"a",t:"\u2713 Question corrected based on your feedback!"})}
+  }catch(e){S.msgs.push({r:"a",t:"Error correcting: "+e.message})}
+  S.feedbackBusy=false;render();
+}
+
+function resetAll(){S.talk=null;S.topic="";S.sec=0;S.dg=null;S.dgErr="";S.msgs=[];S.error="";S.podScript="";S.podBusy=false;S.podPlaying=false;S.podShow=false;S.showAns=false;S.userPick="";S.showFeedback=false;S.feedbackText="";S.feedbackBusy=false;S.chatIn="";S.chatBusy=false;S.dgBusy=false;S.glRef=null;speechSynthesis.cancel();render()}
+
+// ═══════════ DIAGRAM SVG ═══════════
+function diagSVG(dg){
+  if(!dg||!dg.nodes||!dg.nodes.length)return"";
+  var W=720,H=460,P=50,pos={};
+  for(var i=0;i<dg.nodes.length;i++){var n=dg.nodes[i];var nx=Math.max(0,Math.min(1,n.x!=null?n.x:0.5));var ny=Math.max(0,Math.min(1,n.y!=null?n.y:0.5));pos[n.id]={px:P+nx*(W-P*2),py:P+ny*(H-P*2),label:n.label||"",type:n.type||"box"}}
+  var C={title:{f:"#330662",s:"#ab82c5",t:"#fff",z:15},accent:{f:"rgba(112,43,157,.3)",s:"#702b9d",t:"#eee6f3",z:12},formula:{f:"rgba(43,80,157,.25)",s:"#5a8acd",t:"#a0c4ff",z:12},warning:{f:"rgba(200,60,60,.2)",s:"#c85050",t:"#ffb0b0",z:12},box:{f:"rgba(255,255,255,.1)",s:"rgba(200,196,212,.5)",t:"#e8e6f0",z:12}};
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;font-family:system-ui,sans-serif"><defs><marker id="da" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="rgba(171,130,197,.8)"/></marker></defs>';
+  var arrs=dg.arrows||[];
+  for(var ai=0;ai<arrs.length;ai++){var a=arrs[ai],fr=pos[a.from],to=pos[a.to];if(!fr||!to)continue;var dx=to.px-fr.px,dy=to.py-fr.py,d=Math.sqrt(dx*dx+dy*dy);if(d<5)continue;var ux=dx/d,uy=dy/d;var x1=fr.px+ux*40,y1=fr.py+uy*28,x2=to.px-ux*40,y2=to.py-uy*28,mx=(x1+x2)/2,my=(y1+y2)/2;svg+='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="rgba(171,130,197,.6)" stroke-width="2" marker-end="url(#da)"/>';if(a.label)svg+='<rect x="'+(mx-a.label.length*3.5-6)+'" y="'+(my-10)+'" width="'+(a.label.length*7+12)+'" height="20" rx="4" fill="#2d2a3e" stroke="rgba(171,130,197,.4)"/><text x="'+mx+'" y="'+(my+4)+'" text-anchor="middle" fill="#ab82c5" font-size="10">'+esc(a.label)+'</text>'}
+  for(var ni=0;ni<dg.nodes.length;ni++){var nd=dg.nodes[ni],p=pos[nd.id],lb=p.label,ln=wrapText(lb,nd.type==="title"?22:16),c=C[p.type]||C.box;var bw=Math.max(lb.length*(nd.type==="title"?9.5:7.5),90)+28,bh=(nd.type==="title"?42:34)+(ln.length-1)*18;svg+='<rect x="'+(p.px-bw/2)+'" y="'+(p.py-bh/2)+'" width="'+bw+'" height="'+bh+'" rx="'+(nd.type==="title"?10:8)+'" fill="'+c.f+'" stroke="'+c.s+'" stroke-width="'+(nd.type==="title"?2.5:1.5)+'"'+(nd.type==="formula"?' stroke-dasharray="5,3"':"")+"/>";for(var tl=0;tl<ln.length;tl++)svg+='<text x="'+p.px+'" y="'+(p.py+6+tl*18-(ln.length-1)*9)+'" text-anchor="middle" fill="'+c.t+'" font-size="'+c.z+'" font-weight="'+(nd.type==="title"?700:500)+'">'+esc(ln[tl])+"</text>"}
+  return svg+"</svg>";
+}
+
+// ═══════════ RENDER ═══════════
+function render(){
+  var root=document.getElementById("root");
+  if(S.showLib){root.innerHTML=renderLib();bindLib();return}
+  root.innerHTML=renderMain();bindMain();
+}
+
+function renderLib(){
+  var lib=TOPICS;
+  if(S.search.trim()){lib={};var ents=Object.entries(TOPICS);for(var i=0;i<ents.length;i++){var cn=ents[i][0],cd=ents[i][1],f={};var ss=Object.entries(cd.topics);for(var j=0;j<ss.length;j++){var m=ss[j][1].filter(function(t){return t.toLowerCase().indexOf(S.search.toLowerCase())>=0});if(m.length)f[ss[j][0]]=m}if(Object.keys(f).length)lib[cn]={color:cd.color,pct:cd.pct,topics:f}}}
+  var h='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><button id="libBack" style="background:#fff;border:1px solid #e2dfe8;border-radius:8px;padding:8px 14px;color:#6b6780;font-size:13px">\u2190 Back</button><h2 style="font-size:20px;font-weight:700;color:#330662;margin:0">ABIM Topic Library</h2></div>';
+  h+='<input id="libSearch" value="'+esc(S.search)+'" placeholder="Search topics..." style="width:100%;background:#fff;border:1.5px solid #e2dfe8;border-radius:12px;padding:12px 16px;font-size:14px;outline:none;margin-bottom:16px">';
+  var le=Object.entries(lib);
+  for(var li=0;li<le.length;li++){var cat=le[li][0],d=le[li][1];
+    h+='<div style="border-radius:12px;overflow:hidden;border:1px solid #e2dfe8;margin-bottom:8px;background:#fff"><button class="catBtn" data-cat="'+esc(cat)+'" style="width:100%;display:flex;justify-content:space-between;align-items:center;background:#fff;border:none;border-left:4px solid '+d.color+';padding:14px 16px;text-align:left"><div><span style="font-size:14px;font-weight:600">'+esc(cat)+'</span><span style="font-size:12px;color:#702b9d;margin-left:10px;font-weight:600">'+d.pct+'</span></div><span style="color:#9490a6">'+(S.expCat===cat?"\u25BE":"\u25B8")+'</span></button>';
+    if(S.expCat===cat){var ss2=Object.entries(d.topics);for(var si=0;si<ss2.length;si++){var subN=ss2[si][0],subT=ss2[si][1];
+      h+='<button class="subBtn" data-sub="'+esc(subN)+'" style="width:100%;display:flex;justify-content:space-between;background:#f8f7fa;border:none;border-top:1px solid #f0eef4;padding:10px 20px;font-size:13px;color:#6b6780;text-align:left"><span>'+esc(subN)+'</span><span style="color:#9490a6;font-size:12px">'+(S.expSub===subN?"\u25BE":"\u25B8")+'</span></button>';
+      if(S.expSub===subN){for(var ti=0;ti<subT.length;ti++)h+='<button class="topBtn" data-t="'+esc(subT[ti])+'" style="width:100%;background:none;border:none;border-top:1px solid #f0eef4;padding:10px 32px;font-size:13px;color:#6b6780;text-align:left">'+esc(subT[ti])+'</button>'}
+    }}
+    h+='</div>';
+  }
+  return h;
+}
+
+function renderMain(){
+  var h='';
+  // Header
+  h+='<div style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:#330662;border-radius:16px;margin-bottom:10px;color:#fff"><div style="flex:1"><h1 style="font-size:24px;color:#fff;margin:0">Chalk Talk</h1><p style="font-size:13px;color:#ab82c5;margin:2px 0 0">10-Min Teaching Generator \u00B7 ABIM Board-Aligned \u00B7 <span style="font-size:10px;color:#8a6aaf">Created by <a href="https://www.linkedin.com/in/tangjennii/" target="_blank" style="color:#ab82c5;text-decoration:underline">Jennifer Tang, MD</a></span></p></div><div style="text-align:right"><div style="font-size:10px;color:'+(localStorage.getItem("claude_api_key")?"#8fc99a":"#e8a87c")+'">'+(localStorage.getItem("claude_api_key")?"\u2713 API key set":"\u26A0 No API key")+'</div><button id="resetClaudeKey" style="background:none;border:none;color:#8a6aaf;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">'+(localStorage.getItem("claude_api_key")?"Change key":"Set key")+'</button></div></div>';
+  // Description
+  h+='<p style="font-size:11px;color:#9490a6;text-align:center;margin:0 0 16px;line-height:1.5;padding:0 12px">Enter a topic and choose Lecture (physiology-first) or Boards (vignette-driven) to generate a 10-min chalk talk. Content is grounded in open-access society guidelines (KDIGO, AHA/ACC, ATS, IDSA, ACG, AASLD, ADA, ACR, AAN, SCCM, ASH, ASCO/NCCN) and anchored to landmark trials. Upload your own references (PDFs, PowerPoints, board review) for additional grounding. Use the chatbox to refine.</p>';
+  // Topic
+  h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:12px;padding:20px 22px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:#330662;text-transform:uppercase;letter-spacing:.8px">Topic</span><button id="browseBtn" style="background:#eee6f3;border:1px solid #ab82c5;border-radius:8px;padding:6px 14px;color:#330662;font-size:12px;font-weight:600">\uD83D\uDCDA Browse ABIM Topics</button></div><textarea id="topicTA" rows="2" placeholder="Start here \u2014 e.g. Hyponatremia: SIADH pathophysiology & Furst ratio..." style="width:100%;background:#f8f7fa;border:2px solid #ab82c5;border-radius:8px;padding:12px 16px;font-size:15px;color:#2d2a3e;resize:vertical;outline:none">'+esc(S.topic)+'</textarea></div>';
+  // Chatbot
+  h+='<div style="background:#fff;border:1px solid #d0cce0;border-radius:14px;margin-bottom:20px;overflow:hidden">';
+  if(S.msgs.length>0){h+='<div id="chatScroll" style="max-height:220px;overflow-y:auto;padding:14px;border-bottom:1px solid #eee6f3">';for(var mi=0;mi<S.msgs.length;mi++){var m=S.msgs[mi];h+='<div style="margin-bottom:8px;display:flex;justify-content:'+(m.r==="u"?"flex-end":"flex-start")+'"><div style="background:'+(m.r==="u"?"#330662":"#eee6f3")+';color:'+(m.r==="u"?"#fff":"#330662")+';border-radius:12px;padding:8px 14px;font-size:13px;max-width:85%;line-height:1.5">'+esc(m.t)+'</div></div>'}if(S.chatBusy)h+='<div style="display:flex"><div style="background:#eee6f3;color:#702b9d;border-radius:12px;padding:8px 14px;font-size:13px;font-style:italic">Working...</div></div>';h+='</div>'}
+  h+='<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f8f7fa"><span style="font-size:20px;flex-shrink:0">\uD83D\uDCAC</span><input id="chatInput" value="'+esc(S.chatIn)+'" placeholder="After generating, refine here \u2014 e.g. &quot;Incorporate the latest relevant studies from NEJM&quot;" style="flex:1;background:#fff;border:1.5px solid #d0cce0;border-radius:8px;padding:10px 14px;font-size:14px;color:#2d2a3e;outline:none"><button id="chatSend" style="background:'+(S.chatBusy||!S.chatIn.trim()?"#c9c3d6":"linear-gradient(135deg,#702b9d,#330662)")+';border:none;border-radius:8px;width:42px;height:42px;color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:'+(S.chatBusy||!S.chatIn.trim()?"not-allowed":"pointer")+';box-shadow:'+(S.chatBusy||!S.chatIn.trim()?"none":"0 2px 10px rgba(112,43,157,0.45)")+';transition:all .15s">\u2192</button></div></div>';
+  // Style
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">';
+  h+='<button class="styleBtn" data-s="lecture" style="background:'+(S.style==="lecture"?"#eee6f3":"#fff")+';border:2px solid '+(S.style==="lecture"?"#702b9d":"#e2dfe8")+';border-radius:12px;padding:14px;text-align:center"><span style="font-size:22px">\uD83C\uDF93</span><div style="font-size:13px;font-weight:600;color:#2d2a3e;margin-top:4px">Lecture</div></button>';
+  h+='<button class="styleBtn" data-s="boards" style="background:'+(S.style==="boards"?"#eee6f3":"#fff")+';border:2px solid '+(S.style==="boards"?"#702b9d":"#e2dfe8")+';border-radius:12px;padding:14px;text-align:center"><span style="font-size:22px">\uD83D\uDCCB</span><div style="font-size:13px;font-weight:600;color:#2d2a3e;margin-top:4px">Boards</div></button></div>';
+  // Upload
+  h+='<div style="background:#fff;border:1px solid #e2dfe8;border-radius:12px;padding:16px 20px;margin-bottom:16px"><div id="dropZone" style="border:2px dashed #e2dfe8;border-radius:10px;padding:16px;text-align:center;cursor:pointer"><span style="color:#c8c4d4;font-size:20px">+</span> <span style="font-size:13px;color:#9490a6">Upload PDFs, images, notes</span></div><input type="file" id="fileInput" multiple accept=".pdf,.txt,.png,.jpg,.jpeg" style="display:none">';
+  for(var fi=0;fi<S.files.length;fi++)h+='<div style="display:flex;justify-content:space-between;background:#f8f7fa;border-radius:8px;padding:6px 12px;margin-top:6px"><span style="font-size:12px;color:#6b6780">\uD83D\uDCC4 '+esc(S.files[fi].n)+'</span><button class="rmFile" data-i="'+fi+'" style="background:none;border:none;color:#9490a6;font-size:16px">\u00D7</button></div>';
+  h+='</div>';
+  // Podcast checkbox
+  h+='<label style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border:1px solid #e2dfe8;border-radius:10px;margin-bottom:12px;cursor:pointer;font-size:13px;color:#4a4660"><input type="checkbox" id="podCheck" '+(S.wantPod?"checked":"")+' style="width:18px;height:18px;accent-color:#702b9d"><span style="font-size:18px">\uD83C\uDFA7</span><span>Also generate audio podcast script <span style="color:#9490a6;font-size:11px">(listen while walking or driving)</span></span></label>';
+  // Generate + Reset
+  h+='<div style="display:flex;gap:10px;margin-bottom:8px"><button id="genBtn" '+(S.loading||!S.topic.trim()?"disabled":"")+' style="flex:1;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:12px;padding:16px;color:#fff;font-size:16px;font-weight:600;opacity:'+(S.loading||!S.topic.trim()?"0.4":"1")+'">'+(S.loading?"Generating...":"Generate Chalk Talk")+'</button>';
+  if(S.talk)h+='<button id="resetBtn" style="background:#fff;border:2px solid #e2dfe8;border-radius:12px;padding:16px 20px;color:#6b6780;font-size:14px;font-weight:600;white-space:nowrap">\u21BB Reset</button>';
+  h+='</div>';
+  if(S.loading)h+='<div style="background:#fff;border:1px solid #e2dfe8;border-radius:10px;padding:14px 18px;margin-bottom:8px;text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:10px"><div class="spinner"></div><span style="font-size:13px;color:#702b9d;font-weight:500">'+esc(S.loadMsg)+'</span><span style="font-size:12px;color:#9490a6">'+S.loadSec+'s</span></div></div>';
+  if(S.error)h+='<p style="color:#c0392b;font-size:14px;text-align:center;margin-top:4px;margin-bottom:8px">'+esc(S.error)+'</p>';
+
+  // ═══ RESULTS ═══
+  if(S.talk){var t=S.talk,vm=t.visual_memory_card,isBQ=!!(t.question);
+    h+='<div style="margin-top:24px;border-top:3px solid #702b9d;padding-top:24px">';
+    // Title
+    h+='<div style="background:linear-gradient(135deg,#330662,#702b9d);border-radius:16px;padding:28px 24px;text-align:center;margin-bottom:16px"><h1 style="font-size:24px;font-weight:700;margin:0;color:#fff;line-height:1.2">'+esc(t.title)+'</h1><p style="font-size:14px;color:#ab82c5;margin:6px 0 0">'+esc(t.subtitle||"")+'</p><div style="display:flex;justify-content:center;gap:8px;margin-top:12px"><span style="background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:12px;color:#fff">'+(isBQ?"\uD83D\uDCCB Boards Review":"\uD83C\uDF93 Lecture")+'</span></div></div>';
+
+    // Guideline Sources Badge
+    var glSources = (t.guideline_sources && t.guideline_sources.length > 0 && t.guideline_sources[0]) ? t.guideline_sources : (S.glRef ? S.glRef.sources.slice(0,4) : null);
+    if(glSources && glSources.length > 0){
+      h+='<div style="background:#f0f7f0;border:1.5px solid #b8d8b8;border-radius:12px;padding:14px 18px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:16px">\uD83D\uDCDA</span><span style="font-size:12px;font-weight:700;color:#2d6a2d;text-transform:uppercase;letter-spacing:.5px">Grounded in Open-Access Guidelines</span></div><div style="display:flex;flex-wrap:wrap;gap:6px">';
+      for(var gi=0;gi<glSources.length;gi++){h+='<span style="background:#e0f0e0;border:1px solid #b8d8b8;border-radius:6px;padding:3px 10px;font-size:11px;color:#2d6a2d;font-weight:500">'+esc(glSources[gi])+'</span>'}
+      h+='</div>';
+      if(S.glRef && S.glRef.trials && S.glRef.trials.length > 0){
+        h+='<div style="margin-top:8px;font-size:11px;color:#5a8a5a"><span style="font-weight:600">Key Trials:</span> '+esc(S.glRef.trials.slice(0,8).join(" · "))+'</div>';
+      }
+      if(S.glRef && S.glRef.conferences && S.glRef.conferences.length > 0){
+        h+='<div style="margin-top:4px;font-size:11px;color:#5a8a5a"><span style="font-weight:600">Major Conferences:</span> '+esc(S.glRef.conferences.slice(0,4).join(" · "))+'</div>';
+      }
+      h+='</div>';
+    }
+
+    // BOARDS
+    if(isBQ){
+      var q=t.question;
+      h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:22px 20px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#702b9d;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">\uD83D\uDCCB Clinical Vignette</div><p style="font-size:15px;color:#2d2a3e;line-height:1.7;margin:0">'+esc(q.stem)+'</p><div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">';
+      for(var ci=0;ci<(q.choices||[]).length;ci++){var ch=q.choices[ci];var picked=S.userPick===ch.letter;var isRight=ch.correct&&S.showAns;var isWrongPick=picked&&!ch.correct&&S.showAns;var isWrongNotPicked=!ch.correct&&!picked&&S.showAns;var borderStyle=isRight?"2px solid #2d8a2d":isWrongPick?"2px solid #c0392b":picked&&!S.showAns?"2px solid #702b9d":isWrongNotPicked?"1px solid #e8c8c0":"1px solid #e2dfe8";var bgStyle=isRight?"#f0f7f0":isWrongPick?"#fdf0ee":picked&&!S.showAns?"#eee6f3":"#fff";var textColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":"#4a4660";var letterColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":picked&&!S.showAns?"#702b9d":"#702b9d";var suffix=isRight?" \u2713":isWrongPick?" \u2717":"";h+='<button class="choiceBtn" data-letter="'+ch.letter+'" style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;border:'+borderStyle+';background:'+bgStyle+';cursor:'+(S.showAns?"default":"pointer")+';text-align:left;width:100%"><span style="font-weight:700;color:'+letterColor+';font-size:14px;flex-shrink:0">'+ch.letter+'.</span><span style="font-size:14px;color:'+textColor+';line-height:1.5">'+esc(ch.text)+suffix+'</span></button>'}
+      h+='</div>';
+      if(!S.showAns){
+        if(S.userPick)h+='<button id="submitAnsBtn" style="width:100%;margin-top:16px;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer">\u2713 Submit Answer</button>';
+        else h+='<div style="text-align:center;margin-top:12px;font-size:13px;color:#9490a6;font-style:italic">Select your answer above, then submit</div>';
+      }
+      if(S.showAns){
+        var gotIt=S.userPick===q.correct_letter;
+        h+='<div style="margin-top:16px;padding:16px;border-radius:10px;text-align:center;font-size:16px;font-weight:700;background:'+(gotIt?"#f0f7f0":"#fdf0ee")+';border:2px solid '+(gotIt?"#2d8a2d":"#c0392b")+';color:'+(gotIt?"#2d6a2d":"#c0392b")+'">'+(gotIt?"\uD83C\uDF89 Correct! You selected "+S.userPick:"\u274C Incorrect. You selected "+S.userPick+" \u2014 the correct answer is "+q.correct_letter)+'</div>';
+      }
+      h+='</div>';
+      // Explanation (hidden until answer submitted)
+      if(S.showAns){
+      h+='<div style="background:#fff;border:1px solid #e2dfe8;border-radius:12px;padding:22px 20px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#2d6a2d;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">\u2713 Correct Answer: '+esc(q.correct_letter)+'</div><p style="font-size:14px;color:#2d2a3e;line-height:1.6;margin:0 0 16px">'+esc(q.explanation)+'</p>';
+      if((q.wrong_explanations||[]).length>0){h+='<div style="font-size:11px;font-weight:700;color:#8a3a2a;text-transform:uppercase;margin-bottom:8px">Why other answers are wrong</div>';for(var wi=0;wi<q.wrong_explanations.length;wi++){var w=q.wrong_explanations[wi];h+='<div style="font-size:13px;color:#4a4660;line-height:1.5;margin-bottom:6px;display:flex;gap:8px"><span style="font-weight:700;color:#8a3a2a;flex-shrink:0">'+esc(w.letter)+'.</span><span>'+esc(w.why)+'</span></div>'}}
+      h+='</div>';
+      }
+      // Feedback button
+      if(S.showAns){
+        if(!S.showFeedback){h+='<button id="feedbackToggle" style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2dfe8;border-radius:10px;padding:10px 16px;margin-bottom:16px;cursor:pointer;font-size:13px;color:#8a3a2a"><span>\uD83D\uDEA9</span> Disagree with this answer? Give feedback</button>'}
+        else{h+='<div style="background:#fff;border:2px solid #e67e22;border-radius:12px;padding:18px 20px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#e67e22;margin-bottom:10px">\uD83D\uDEA9 What\u2019s wrong with this answer?</div><textarea id="feedbackTA" rows="3" placeholder="e.g. 3% saline is first-line for symptomatic hyponatremia, not fluid restriction..." style="width:100%;background:#f8f7fa;border:1.5px solid #e2dfe8;border-radius:8px;padding:12px 16px;font-size:14px;color:#2d2a3e;resize:vertical;outline:none;margin-bottom:10px">'+esc(S.feedbackText)+'</textarea><div style="display:flex;gap:10px"><button id="feedbackSubmit" '+(S.feedbackBusy?"disabled":"")+' style="flex:1;background:linear-gradient(135deg,#e67e22,#d35400);border:none;border-radius:8px;padding:12px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.feedbackBusy||!S.feedbackText.trim()?"0.4":"1")+'">'+(S.feedbackBusy?"Correcting...":"Submit Feedback & Regenerate")+'</button><button id="feedbackCancel" style="background:#f8f7fa;border:1px solid #e2dfe8;border-radius:8px;padding:12px 16px;color:#6b6780;font-size:13px">Cancel</button></div></div>'}
+      }
+      // Board pearls
+      h+='<div style="background:#fff;border:2px solid #e67e22;border-radius:14px;padding:22px 20px;margin-bottom:16px"><div style="font-size:14px;font-weight:700;color:#e67e22;margin-bottom:14px">\uD83C\uDFAF High-Yield Board Pearls</div>';
+      for(var pi=0;pi<(t.board_pearls||[]).length;pi++)h+='<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px"><span style="background:#e67e22;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'+(pi+1)+'</span><span style="font-size:14px;color:#2d2a3e;line-height:1.5">'+esc(t.board_pearls[pi])+'</span></div>';
+      h+='</div>';
+      // Teaching points
+      if((t.teaching_points||[]).length>0){h+='<div style="background:#fff;border:1px solid #c8e0c8;border-radius:12px;padding:22px 20px;margin-bottom:16px"><div style="font-size:14px;font-weight:700;color:#2d6a2d;margin-bottom:14px">\uD83D\uDCA1 Key Teaching Points</div>';for(var tp=0;tp<t.teaching_points.length;tp++)h+='<div style="font-size:14px;color:#2d2a3e;line-height:1.5;display:flex;gap:9px;margin-bottom:6px"><span style="color:#2d6a2d;font-weight:700">\u25B8</span>'+esc(t.teaching_points[tp])+'</div>';h+='</div>'}
+    }
+    // LECTURE
+    if(!isBQ&&(t.sections||[]).length>0){
+      h+='<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:16px">';
+      for(var si2=0;si2<t.sections.length;si2++){var x=t.sections[si2];h+='<button class="secBtn" data-i="'+si2+'" style="display:flex;align-items:center;gap:12px;background:'+(S.sec===si2?"#eee6f3":"#fff")+';border:2px solid '+(S.sec===si2?"#702b9d":"#e2dfe8")+';border-radius:12px;padding:11px 14px;width:100%;text-align:left"><span style="background:'+(S.sec===si2?"#330662":"#eee6f3")+';color:'+(S.sec===si2?"#fff":"#330662")+';width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">'+(si2+1)+'</span><span style="flex:1;font-size:13px;color:#4a4660;font-weight:500">'+esc(x.heading)+'</span><span style="font-size:11px;color:#9490a6">'+esc(x.minutes)+'</span></button>'}
+      h+='</div>';
+      var cs=t.sections[S.sec];
+      if(cs){h+='<div style="background:#fff;border:1px solid #e2dfe8;border-radius:12px;padding:22px 20px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:2px solid #eee6f3;padding-bottom:10px"><h2 style="font-size:18px;font-weight:600;margin:0;color:#330662">'+esc(cs.heading)+'</h2><span style="font-size:12px;color:#702b9d;font-weight:600">'+esc(cs.minutes)+'</span></div><div style="display:flex;flex-direction:column;gap:9px">';
+        for(var pi2=0;pi2<(cs.points||[]).length;pi2++)h+='<div style="font-size:14px;color:#4a4660;line-height:1.5;display:flex;gap:9px"><span style="color:#702b9d;font-weight:700">\u25B8</span>'+esc(cs.points[pi2])+'</div>';
+        h+='</div>';
+        if(cs.teaching_pearl)h+='<div style="margin-top:16px;background:#f0f7f0;border:1px solid #c8e0c8;border-radius:8px;padding:12px 14px"><div style="font-size:11px;font-weight:700;color:#2d6a2d;text-transform:uppercase;margin-bottom:4px">\uD83D\uDCA1 Teaching Pearl</div><div style="font-size:13px;color:#2d6a2d;line-height:1.5">'+esc(cs.teaching_pearl)+'</div></div>';
+        if(cs.board_tip)h+='<div style="margin-top:10px;background:#fdf0ee;border:1px solid #e8c8c0;border-radius:8px;padding:12px 14px"><div style="font-size:11px;font-weight:700;color:#8a3a2a;text-transform:uppercase;margin-bottom:4px">\uD83C\uDFAF Board Tip</div><div style="font-size:13px;color:#8a3a2a;line-height:1.5">'+esc(cs.board_tip)+'</div></div>';
+        h+='</div>'}
+    }
+    // Diagram
+    h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:18px 20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><span style="font-size:28px">\uD83C\uDFA8</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Visual Aid</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.dgMode==="ai"?(S.dg&&S.dg.imgB64?"Generated with Nano Banana 2":"AI illustration (needs Gemini key)"):"Simple flowchart (no key needed)")+'</div></div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.dgBusy?".6":"1")+'">'+(S.dgBusy?"Generating...":S.dg?"\u21BB Regenerate":"Generate")+'</button></div>';
+    h+='<div style="display:flex;gap:6px;margin-bottom:4px"><button class="dgModeBtn" data-m="ai" style="flex:1;background:'+(S.dgMode==="ai"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="ai"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="ai"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer">\uD83C\uDFA8 AI Illustration (Nano Banana)</button><button class="dgModeBtn" data-m="svg" style="flex:1;background:'+(S.dgMode==="svg"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="svg"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="svg"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer">\uD83D\uDCC8 Simple Diagram (no key)</button></div>';
+    if(S.dgErr)h+='<div style="color:#c0392b;font-size:12px;margin-top:10px">'+esc(S.dgErr)+(S.dgMode==="ai"?' <a href="#" id="resetKey" style="color:#702b9d;text-decoration:underline">Reset API key</a>':"")+'</div>';
+    if(S.dg&&S.dg.imgB64)h+='<div style="background:#fff;border-radius:12px;padding:8px;margin-top:12px;border:1px solid #eee6f3"><img src="data:image/png;base64,'+S.dg.imgB64+'" style="width:100%;height:auto;display:block;border-radius:8px"/></div>';
+    if(S.dg&&S.dg.svg)h+='<div style="background:#2d2a3e;border-radius:12px;padding:20px;margin-top:12px">'+diagSVG(S.dg.svg)+'</div>';
+    h+='</div>';
+    // Podcast
+    h+='<div style="background:#fff;border:2px solid #330662;border-radius:14px;padding:18px 20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px"><span style="font-size:28px">\uD83C\uDFA7</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Audio Podcast</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.podScript?"Listen while walking or driving":"Generate podcast narration")+'</div></div>';
+    if(!S.podScript)h+='<button id="podGenBtn" '+(S.podBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.podBusy?".6":"1")+'">'+(S.podBusy?"Writing...":"Generate Podcast")+'</button>';
+    h+='</div>';
+    if(S.podScript){h+='<div style="margin-top:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><button id="podPlayBtn" style="background:'+(S.podPlaying?"#c0392b":"#330662")+';border:none;border-radius:50%;width:44px;height:44px;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center">'+(S.podPlaying?"\u23F8":"\u25B6")+'</button><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#330662">'+(S.podPlaying?"Playing...":"Ready to play")+'</div><div style="font-size:11px;color:#9490a6">Uses your device speaker</div></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#9490a6">Speed:</span>';
+      [0.75,1,1.25,1.5].forEach(function(r){h+='<button class="rateBtn" data-r="'+r+'" style="background:'+(S.podRate===r?"#330662":"#eee6f3")+';color:'+(S.podRate===r?"#fff":"#330662")+';border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600">'+r+'x</button>'});
+      h+='</div></div><button id="podToggle" style="background:none;border:none;color:#702b9d;font-size:12px;font-weight:600;margin-bottom:'+(S.podShow?"8px":"0")+'">'+(S.podShow?"\u25BE Hide script":"\u25B8 Show script")+'</button>';
+      if(S.podShow)h+='<div style="background:#f8f7fa;border-radius:8px;padding:14px 16px;font-size:13px;color:#4a4660;line-height:1.7;max-height:300px;overflow-y:auto;white-space:pre-wrap">'+esc(S.podScript)+'</div>';
+      h+='</div>'}
+    h+='</div>';
+    // VMC
+    h+='<div style="background:linear-gradient(145deg,#330662 0%,#4a1a7a 50%,#702b9d 100%);border-radius:16px;padding:28px 22px;color:#fff"><div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><span style="font-size:20px">\uD83D\uDCF8</span><div><div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#ab82c5">Visual Memory Card</div><div style="font-size:11px;color:rgba(255,255,255,.5)">Screenshot this</div></div></div><div style="font-size:20px;font-weight:700;text-align:center;margin-bottom:18px">'+esc(t.title)+'</div>';
+    if(vm){h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';[["I",vm.top_left],["II",vm.top_right],["III",vm.bottom_left],["IV",vm.bottom_right]].forEach(function(q2){h+='<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,.12)"><div style="font-size:11px;font-weight:700;color:#ab82c5;margin-bottom:4px">'+q2[0]+'</div><div style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.4">'+esc(q2[1])+'</div></div>'});h+='</div>';if(vm.center)h+='<div style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:14px 16px;text-align:center;margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:#ab82c5;margin-bottom:4px">\uD83D\uDD11 ANCHOR</div><div style="font-size:15px;font-weight:600">'+esc(vm.center)+'</div></div>'}
+    h+='<div style="border-top:1px solid rgba(255,255,255,.15);padding-top:14px"><div style="font-size:11px;font-weight:700;color:#ab82c5;text-transform:uppercase;margin-bottom:8px">Key Takeaways</div>';
+    for(var ki=0;ki<(t.summary_points||[]).length;ki++)h+='<div style="display:flex;gap:9px;align-items:flex-start;margin-bottom:7px;font-size:13px;color:rgba(255,255,255,.85);line-height:1.4"><span style="background:rgba(255,255,255,.15);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+(ki+1)+'</span>'+esc(t.summary_points[ki])+'</div>';
+    h+='</div></div></div>';
+  }
+  return h;
+}
+
+// ═══════════ BIND ═══════════
+function bindLib(){
+  document.getElementById("libBack").onclick=function(){S.showLib=false;render()};
+  document.getElementById("libSearch").oninput=function(e){S.search=e.target.value;render()};
+  document.querySelectorAll(".catBtn").forEach(function(b){b.onclick=function(){S.expCat=S.expCat===b.dataset.cat?null:b.dataset.cat;S.expSub=null;render()}});
+  document.querySelectorAll(".subBtn").forEach(function(b){b.onclick=function(){S.expSub=S.expSub===b.dataset.sub?null:b.dataset.sub;render()}});
+  document.querySelectorAll(".topBtn").forEach(function(b){b.onclick=function(){S.topic=b.dataset.t;S.showLib=false;render()}});
+}
+
+function bindMain(){
+  var ta=document.getElementById("topicTA");if(ta)ta.oninput=function(e){S.topic=e.target.value;var gb2=document.getElementById("genBtn");if(gb2){gb2.disabled=S.loading||!S.topic.trim();gb2.style.opacity=S.loading||!S.topic.trim()?"0.4":"1"}};
+  var bb=document.getElementById("browseBtn");if(bb)bb.onclick=function(){S.showLib=true;S.expCat="\u2605 Nephrology";render()};
+  var ci=document.getElementById("chatInput");if(ci){ci.oninput=function(e){S.chatIn=e.target.value;var csB=document.getElementById("chatSend");if(csB){var act=!S.chatBusy&&S.chatIn.trim();csB.style.background=act?"linear-gradient(135deg,#702b9d,#330662)":"#c9c3d6";csB.style.boxShadow=act?"0 2px 10px rgba(112,43,157,0.45)":"none";csB.style.cursor=act?"pointer":"not-allowed"}};ci.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();sendChat()}}}
+  var cs=document.getElementById("chatSend");if(cs)cs.onclick=sendChat;
+  document.querySelectorAll(".styleBtn").forEach(function(b){b.onclick=function(){if(S.style!==b.dataset.s){S.style=b.dataset.s;S.talk=null;S.sec=0;S.dg=null;S.dgErr="";S.podScript="";S.podPlaying=false;S.podShow=false;S.showAns=false;S.userPick="";S.error="";speechSynthesis.cancel()}render()}});
+  var dz=document.getElementById("dropZone");if(dz)dz.onclick=function(){document.getElementById("fileInput").click()};
+  var fi=document.getElementById("fileInput");if(fi)fi.onchange=async function(e){
+    for(var i=0;i<e.target.files.length;i++){var f=e.target.files[i];try{
+      if(f.type.indexOf("text")>=0||f.name.endsWith(".txt")){var r=new FileReader();r.onload=function(){S.files.push({n:f.name,t:"text",c:r.result.slice(0,8000)});render()};r.readAsText(f)}
+      else if(f.type==="application/pdf"||f.type.indexOf("image/")===0){var r2=new FileReader();r2.onload=function(){S.files.push({n:f.name,t:f.type==="application/pdf"?"pdf":"img",c:r2.result.split(",")[1],m:f.type});render()};r2.readAsDataURL(f)}
+    }catch(err){}}};
+  document.querySelectorAll(".rmFile").forEach(function(b){b.onclick=function(){S.files.splice(+b.dataset.i,1);render()}});
+  var pc=document.getElementById("podCheck");if(pc)pc.onchange=function(e){S.wantPod=e.target.checked};
+  var gb=document.getElementById("genBtn");if(gb)gb.onclick=generate;
+  var rb=document.getElementById("resetBtn");if(rb)rb.onclick=resetAll;
+  document.querySelectorAll(".secBtn").forEach(function(b){b.onclick=function(){S.sec=+b.dataset.i;render()}});
+  var db=document.getElementById("dgBtn");if(db)db.onclick=genDiagram;
+  document.querySelectorAll(".dgModeBtn").forEach(function(b){b.onclick=function(){if(S.dgMode!==b.dataset.m){S.dgMode=b.dataset.m;S.dg=null;S.dgErr="";render()}}});
+  var rk=document.getElementById("resetKey");if(rk)rk.onclick=function(e){e.preventDefault();localStorage.removeItem("gemini_api_key");S.dgErr="API key cleared. Click Generate Visual to re-enter.";render()};
+  var rck=document.getElementById("resetClaudeKey");if(rck)rck.onclick=function(){localStorage.removeItem("claude_api_key");var nk=prompt("Enter your Anthropic API key:\n\nGet one at: https://console.anthropic.com/settings/keys");if(nk&&nk.trim())localStorage.setItem("claude_api_key",nk.trim());render()};
+  document.querySelectorAll(".choiceBtn").forEach(function(b){b.onclick=function(){if(!S.showAns){S.userPick=b.dataset.letter;render()}}});
+  var sb=document.getElementById("submitAnsBtn");if(sb)sb.onclick=function(){S.showAns=true;render()};
+  var ft=document.getElementById("feedbackToggle");if(ft)ft.onclick=function(){S.showFeedback=true;render()};
+  var fta=document.getElementById("feedbackTA");if(fta)fta.oninput=function(e){S.feedbackText=e.target.value;var fsb=document.getElementById("feedbackSubmit");if(fsb)fsb.style.opacity=S.feedbackText.trim()?"1":"0.4"};
+  var fs=document.getElementById("feedbackSubmit");if(fs)fs.onclick=submitFeedback;
+  var fc=document.getElementById("feedbackCancel");if(fc)fc.onclick=function(){S.showFeedback=false;S.feedbackText="";render()};
+  var pg=document.getElementById("podGenBtn");if(pg)pg.onclick=genPodcast;
+  var pp=document.getElementById("podPlayBtn");if(pp)pp.onclick=playPod;
+  document.querySelectorAll(".rateBtn").forEach(function(b){b.onclick=function(){S.podRate=parseFloat(b.dataset.r);if(S.podPlaying){speechSynthesis.cancel();S.podPlaying=false}render()}});
+  var pt=document.getElementById("podToggle");if(pt)pt.onclick=function(){S.podShow=!S.podShow;render()};
+}
+
+// ═══════════ INIT ═══════════
+render();
+</script>
+</body>
+</html>
