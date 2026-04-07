@@ -424,7 +424,7 @@ var LECTURE_PROMPT = 'You are a senior Internal Medicine educator (general IM ac
 var BOARDS_PROMPT = 'You are an ABIM board-question writer for general Internal Medicine (all subspecialties). Match the question to whatever specialty the topic belongs to; do NOT default to nephrology unless the topic is clearly renal.\n\nINTERNAL REASONING PROCESS (think through this BEFORE writing the JSON, do not include in output):\n1. What is the highest-yield, board-relevant teaching point on this topic?\n2. What clinical scenario would discriminate someone who knows the concept from someone who doesn\'t?\n3. What are the classic distractors that test common misconceptions or competing diagnoses?\n4. What is the unambiguously correct answer per current guidelines, and why is it correct?\n5. For each wrong answer, what specific reasoning error or knowledge gap would lead to picking it?\n6. Is there ANY ambiguity in the answer? If yes, revise so the correct answer is unambiguously best.\n\nOnly after completing this reasoning, write the question. The vignette MUST be clinically realistic. The correct answer MUST be clearly best per current guidelines, not just defensible.\n\nCRITICAL: When GUIDELINE REFERENCE CONTEXT is provided below, anchor the correct answer, explanation, and board pearls to those specific guideline recommendations. Cite guideline name and year in the explanation. UWorld/AMBOSS-style vignette with stem, 5 choices A-E (one correct), explanation, why wrong answers wrong, 5 board pearls, teaching points.\n\nONLY JSON:\n{"title":"","subtitle":"","guideline_sources":[""],"question":{"stem":"","choices":[{"letter":"A","text":"","correct":false},{"letter":"B","text":"","correct":true},{"letter":"C","text":"","correct":false},{"letter":"D","text":"","correct":false},{"letter":"E","text":"","correct":false}],"correct_letter":"B","explanation":"","wrong_explanations":[{"letter":"A","why":""},{"letter":"C","why":""},{"letter":"D","why":""},{"letter":"E","why":""}]},"board_pearls":["","","","",""],"teaching_points":["","",""],"summary_points":[""],"visual_memory_card":{"top_left":"","top_right":"","bottom_left":"","bottom_right":"","center":""}}';
 
 // ═══════════ STATE ═══════════
-var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false };
+var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, wantWebSearch:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false };
 var loadTimer = null;
 
 // ═══════════ UTILS ═══════════
@@ -497,7 +497,7 @@ async function callAPI(sys, content, maxTok, opts) {
 async function generate(){
   if(!S.topic.trim()||S.loading)return;
   S.loading=true;S.error="";S.loadSec=0;S.loadMsg="Reasoning through physiology...";S.talk=null;S.sec=0;S.dg=null;S.dgErr="";S.podScript="";S.podPlaying=false;S.podShow=false;S.showAns=false;S.userPick="";S.critiqueStatus="idle";S.critiqueResult=null;S.critiqueShow=false;speechSynthesis.cancel();render();
-  loadTimer=setInterval(function(){S.loadSec++;var msgs=["Reasoning through physiology...","Loading guidelines...","Cross-referencing societies...","Searching current evidence...","Building content...","Adding pearls & trials...","Verifying internal consistency...","Almost there..."];S.loadMsg=msgs[Math.min(Math.floor(S.loadSec/2.5),msgs.length-1)];render()},1000);
+  loadTimer=setInterval(function(){S.loadSec++;var msgs=S.wantWebSearch?["Reasoning through physiology...","Searching current literature...","Cross-referencing societies...","Building content...","Peer reviewing...","Polishing final version..."]:["Reasoning through physiology...","Loading guidelines...","Building content...","Peer reviewing & polishing..."];S.loadMsg=msgs[Math.min(Math.floor(S.loadSec/3),msgs.length-1)];render()},1000);
   try{
     var glRef = getGuidelinesForTopic(S.topic);
     var guidelineContext = "";
@@ -506,37 +506,48 @@ async function generate(){
       if (glRef.trials.length > 0) guidelineContext += "\nLandmark trials to cite when relevant: " + glRef.trials.join(", ");
       guidelineContext += "\n═══ END GUIDELINE CONTEXT ═══";
     }
-    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + guidelineContext + '\nIf the topic involves treatment recommendations or guideline updates from the past 12 months, use web_search to verify the most current society guidance before writing. Search high-quality sources only (society guideline pages, NEJM, JAMA, Lancet, PubMed). Otherwise rely on your training and the GUIDELINE REFERENCE CONTEXT above.\nONLY JSON.'}];
+    var searchHint = S.wantWebSearch
+      ? '\nUse web_search to verify the most current society guidance from high-quality sources only (society guideline pages, NEJM, JAMA, Lancet, PubMed) before writing.'
+      : '\nRely on your training and the GUIDELINE REFERENCE CONTEXT above. Do not search the web.';
+    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + guidelineContext + searchHint + '\nONLY JSON.'}];
     var sys=S.style==="boards"?BOARDS_PROMPT:LECTURE_PROMPT;
-    // Main generation: Sonnet + web search tool
-    var txt=await callAPI(sys,uc,8192,{model:MODEL_MAIN, tools:[{type:"web_search_20250305",name:"web_search",max_uses:3}]});
+
+    // Step 1: Main generation (Sonnet, max 4096 tokens, web search only if user opted in)
+    var mainOpts = {model:MODEL_MAIN};
+    if (S.wantWebSearch) mainOpts.tools = [{type:"web_search_20250305",name:"web_search",max_uses:3}];
+    var txt=await callAPI(sys,uc,4096,mainOpts);
     if(!txt.trim())throw new Error("Empty response");
-    S.talk=JSON.parse(fixJSON(txt));S.sec=0;S.dg=null;S.dgErr="";S.podScript="";
+    var draftTalk=JSON.parse(fixJSON(txt));
+
+    // Step 2: Combined critique-and-fix in a single Haiku call
+    // If clean, returns {"verdict":"clean"}; if issues, returns the corrected JSON in same schema as draft
+    var critiqueSystem = "You are a senior board-certified Internal Medicine attending acting as a peer reviewer for a chalk talk. Review for: (1) factual errors in physiology or pharmacology, (2) outdated treatment recommendations vs current major society guidelines (KDIGO/AHA/ACC/ATS/ACG/AASLD/ADA/IDSA/ASH/ASCO/ACR/AAN/SCCM/AAAAI/AAD/APA/AGS/ACOG/USPSTF/AAHPM), (3) internal contradictions, (4) wrong landmark trial attributions, (5) shallow physiology. Do NOT flag stylistic preferences.\n\nReturn ONLY ONE of these two JSON formats (no other text):\n\nIF the talk is accurate and needs no changes:\n{\"verdict\":\"clean\"}\n\nIF you find substantive accuracy issues, return the FULL corrected chalk talk in the EXACT same JSON schema as the draft, with all your fixes applied. Do NOT include a verdict field in this case — just return the corrected talk JSON directly.";
+    var critiqueInput = "Topic: " + S.topic + "\n\nDraft chalk talk to review:\n" + JSON.stringify(draftTalk);
+
+    var finalTalk = draftTalk;
+    try {
+      var critTxt = await callAPI(critiqueSystem, critiqueInput, 4096, {model:MODEL_CRITIC});
+      if (critTxt && critTxt.trim()) {
+        var parsed = JSON.parse(fixJSON(critTxt));
+        // If verdict is "clean", keep draft. Otherwise the parsed object IS the corrected talk.
+        if (parsed.verdict === "clean") {
+          finalTalk = draftTalk;
+        } else if (parsed.title || parsed.question) {
+          // Looks like a corrected talk (has expected schema fields)
+          finalTalk = parsed;
+        }
+      }
+    } catch(critErr) {
+      // If critique fails, fall back to original draft silently
+      console.warn("Critique failed, using draft:", critErr.message);
+    }
+
+    S.talk = finalTalk;
+    S.sec=0;S.dg=null;S.dgErr="";S.podScript="";
     if (glRef) { S.glRef = glRef; } else { S.glRef = null; }
   }catch(e){S.error=e.message}
   clearInterval(loadTimer);S.loading=false;render();
-  if(S.talk){
-    runCritique(); // background — does NOT block UI
-    if(S.wantPod)genPodcast();
-  }
-}
-
-// ═══════════ CRITIQUE PASS (background) ═══════════
-async function runCritique(){
-  if(!S.talk)return;
-  S.critiqueStatus="running";render();
-  try{
-    var critiqueSystem = "You are a senior board-certified Internal Medicine attending acting as a peer reviewer. Your job is to find errors in a chalk talk that another physician created. Be rigorous but fair. Look for: (1) factual errors in physiology or pharmacology, (2) outdated treatment recommendations that don't match current major society guidelines (KDIGO/AHA/ACC/ATS/ACG/AASLD/ADA/IDSA/ASH/ASCO/ACR/AAN/SCCM/AAAAI/AAD/APA/AGS/ACOG/USPSTF/AAHPM), (3) internal contradictions (the treatment doesn't match the mechanism described), (4) wrong landmark trial attributions, (5) shallow or misleading physiology. Do NOT flag stylistic preferences or minor wording. Only flag substantive accuracy issues a senior attending would correct.\n\nReturn ONLY this JSON, no other text:\n{\"verdict\":\"clean\" or \"issues\",\"issues\":[{\"section\":\"name of section\",\"problem\":\"what's wrong\",\"correction\":\"what it should say\"}]}\n\nIf the talk is accurate, return {\"verdict\":\"clean\",\"issues\":[]}";
-    var critiqueInput = "Topic: " + S.topic + "\n\nChalk talk to review:\n" + JSON.stringify(S.talk);
-    var critTxt = await callAPI(critiqueSystem, critiqueInput, 2048, {model:MODEL_CRITIC});
-    var parsed = JSON.parse(fixJSON(critTxt));
-    S.critiqueResult = parsed;
-    S.critiqueStatus = parsed.verdict === "clean" ? "clean" : "issues";
-  }catch(e){
-    S.critiqueStatus="error";
-    S.critiqueResult={verdict:"error",error:e.message};
-  }
-  render();
+  if(S.talk&&S.wantPod)genPodcast();
 }
 
 function getGeminiKey(){
@@ -715,6 +726,7 @@ function renderMain(){
   for(var fi=0;fi<S.files.length;fi++)h+='<div style="display:flex;justify-content:space-between;background:#f8f7fa;border-radius:8px;padding:6px 12px;margin-top:6px"><span style="font-size:12px;color:#6b6780">\uD83D\uDCC4 '+esc(S.files[fi].n)+'</span><button class="rmFile" data-i="'+fi+'" style="background:none;border:none;color:#9490a6;font-size:16px">\u00D7</button></div>';
   h+='</div>';
   // Podcast checkbox
+  h+='<label style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border:1px solid #e2dfe8;border-radius:10px;margin-bottom:8px;cursor:pointer;font-size:13px;color:#4a4660"><input type="checkbox" id="webCheck" '+(S.wantWebSearch?"checked":"")+' style="width:18px;height:18px;accent-color:#702b9d"><span style="font-size:18px">\uD83D\uDD0D</span><span>Verify with current literature <span style="color:#9490a6;font-size:11px">(searches PubMed/society sites — adds ~15s)</span></span></label>';
   h+='<label style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border:1px solid #e2dfe8;border-radius:10px;margin-bottom:12px;cursor:pointer;font-size:13px;color:#4a4660"><input type="checkbox" id="podCheck" '+(S.wantPod?"checked":"")+' style="width:18px;height:18px;accent-color:#702b9d"><span style="font-size:18px">\uD83C\uDFA7</span><span>Also generate audio podcast script <span style="color:#9490a6;font-size:11px">(listen while walking or driving)</span></span></label>';
   // Generate + Reset
   h+='<div style="display:flex;gap:10px;margin-bottom:8px"><button id="genBtn" '+(S.loading||!S.topic.trim()?"disabled":"")+' style="flex:1;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:12px;padding:16px;color:#fff;font-size:16px;font-weight:600;opacity:'+(S.loading||!S.topic.trim()?"0.4":"1")+'">'+(S.loading?"Generating...":"Generate Chalk Talk")+'</button>';
@@ -728,25 +740,6 @@ function renderMain(){
     h+='<div style="margin-top:24px;border-top:3px solid #702b9d;padding-top:24px">';
     // Title
     h+='<div style="background:linear-gradient(135deg,#330662,#702b9d);border-radius:16px;padding:28px 24px;text-align:center;margin-bottom:16px"><h1 style="font-size:24px;font-weight:700;margin:0;color:#fff;line-height:1.2">'+esc(t.title)+'</h1><p style="font-size:14px;color:#ab82c5;margin:6px 0 0">'+esc(t.subtitle||"")+'</p><div style="display:flex;justify-content:center;gap:8px;margin-top:12px"><span style="background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:12px;color:#fff">'+(isBQ?"\uD83D\uDCCB Boards Review":"\uD83C\uDF93 Lecture")+'</span></div></div>';
-
-    // ═══ AI Reviewer Badge (critique pass) ═══
-    if(S.critiqueStatus==="running"){
-      h+='<div style="background:#f8f7fa;border:1.5px solid #d4cfdf;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><div class="spinner" style="width:14px;height:14px;border-width:2px"></div><span style="font-size:12px;color:#702b9d;font-weight:500">AI reviewer checking accuracy against guidelines...</span></div>';
-    } else if(S.critiqueStatus==="clean"){
-      h+='<div style="background:#f0f7f0;border:1.5px solid #b8d8b8;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><span style="font-size:14px">\u2713</span><span style="font-size:12px;color:#2d6a2d;font-weight:600">Verified — AI reviewer (Haiku) found no accuracy issues</span></div>';
-    } else if(S.critiqueStatus==="issues" && S.critiqueResult && S.critiqueResult.issues){
-      var issueCount=S.critiqueResult.issues.length;
-      h+='<div style="background:#fff4e5;border:1.5px solid #f9c980;border-radius:10px;padding:12px 14px;margin-bottom:12px"><button id="critToggle" style="background:none;border:none;width:100%;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;padding:0;font-family:inherit"><span style="font-size:14px">\u26A0</span><span style="font-size:12px;color:#b86c00;font-weight:600;flex:1">AI reviewer flagged '+issueCount+' item'+(issueCount>1?"s":"")+' \u2014 tap to '+(S.critiqueShow?"hide":"see")+'</span><span style="font-size:11px;color:#b86c00">'+(S.critiqueShow?"\u25BE":"\u25B8")+'</span></button>';
-      if(S.critiqueShow){
-        h+='<div style="margin-top:10px;border-top:1px solid #f9c980;padding-top:10px">';
-        for(var ci=0;ci<S.critiqueResult.issues.length;ci++){
-          var iss=S.critiqueResult.issues[ci];
-          h+='<div style="margin-bottom:10px;padding:8px 10px;background:#fffbf3;border-radius:6px"><div style="font-size:11px;font-weight:700;color:#b86c00;margin-bottom:3px">'+esc(iss.section||"")+'</div><div style="font-size:12px;color:#5d4a1a;margin-bottom:4px"><span style="font-weight:600">Issue:</span> '+esc(iss.problem||"")+'</div><div style="font-size:12px;color:#2d6a2d"><span style="font-weight:600">Suggested:</span> '+esc(iss.correction||"")+'</div></div>';
-        }
-        h+='</div>';
-      }
-      h+='</div>';
-    }
 
     // Guideline Sources Badge
     var glSources = (t.guideline_sources && t.guideline_sources.length > 0 && t.guideline_sources[0]) ? t.guideline_sources : (S.glRef ? S.glRef.sources.slice(0,4) : null);
@@ -859,8 +852,8 @@ function bindMain(){
     }catch(err){}}};
   document.querySelectorAll(".rmFile").forEach(function(b){b.onclick=function(){S.files.splice(+b.dataset.i,1);render()}});
   var pc=document.getElementById("podCheck");if(pc)pc.onchange=function(e){S.wantPod=e.target.checked};
+  var wc=document.getElementById("webCheck");if(wc)wc.onchange=function(e){S.wantWebSearch=e.target.checked};
   var gb=document.getElementById("genBtn");if(gb)gb.onclick=generate;
-  var ct=document.getElementById("critToggle");if(ct)ct.onclick=function(){S.critiqueShow=!S.critiqueShow;render()};
   var rb=document.getElementById("resetBtn");if(rb)rb.onclick=resetAll;
   document.querySelectorAll(".secBtn").forEach(function(b){b.onclick=function(){S.sec=+b.dataset.i;render()}});
   var db=document.getElementById("dgBtn");if(db)db.onclick=genDiagram;
