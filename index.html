@@ -430,8 +430,32 @@ var loadTimer = null;
 // ═══════════ UTILS ═══════════
 function esc(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 
+function stripCitations(str) {
+  if (typeof str !== "string") return str;
+  return str
+    .replace(/]*>/g, "")
+    .replace(/<\/antml:cite>/g, "")
+    .replace(/<cite[^>]*>/g, "")
+    .replace(/<\/cite>/g, "")
+    .replace(/\[\d+(?:[-,:]\d+)*\]/g, "")  // also strip bracket citations like [1] [2-3]
+    .trim();
+}
+
+function deepCleanCitations(obj) {
+  if (typeof obj === "string") return stripCitations(obj);
+  if (Array.isArray(obj)) return obj.map(deepCleanCitations);
+  if (obj && typeof obj === "object") {
+    var out = {};
+    for (var k in obj) out[k] = deepCleanCitations(obj[k]);
+    return out;
+  }
+  return obj;
+}
+
 function fixJSON(raw) {
-  var t = raw.replace(/```json/g,"").replace(/```/g,"").trim();
+  // Strip web search citation tags that leak into output
+  var t = raw.replace(/]*>/g,"").replace(/<\/antml:cite>/g,"").replace(/<cite[^>]*>/g,"").replace(/<\/cite>/g,"");
+  t = t.replace(/```json/g,"").replace(/```/g,"").trim();
   try { return JSON.parse(t), t; } catch(e) {}
   if (!t.endsWith("}")) { var idx = t.lastIndexOf("}"); if (idx > 0) t = t.substring(0, idx + 1); }
   try { return JSON.parse(t), t; } catch(e) {}
@@ -507,9 +531,9 @@ async function generate(){
       guidelineContext += "\n═══ END GUIDELINE CONTEXT ═══";
     }
     var searchHint = S.wantWebSearch
-      ? '\nUse web_search to verify the most current society guidance from high-quality sources only (society guideline pages, NEJM, JAMA, Lancet, PubMed) before writing.'
+      ? '\nUse web_search to verify the most current society guidance from high-quality sources only (society guideline pages, NEJM, JAMA, Lancet, PubMed) before writing. CRITICAL: Do NOT include any citation markup, XML tags, <cite> tags,  tags, or footnote markers in your output. The JSON values must be plain text only. If you want to attribute a fact, write it inline like "per KDIGO 2024" or "(EMPA-KIDNEY trial)" — never use XML/HTML tags.'
       : '\nRely on your training and the GUIDELINE REFERENCE CONTEXT above. Do not search the web.';
-    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + guidelineContext + searchHint + '\nONLY JSON.'}];
+    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + guidelineContext + searchHint + '\nONLY JSON. Plain text values, no XML tags, no citation markup.'}];
     var sys=S.style==="boards"?BOARDS_PROMPT:LECTURE_PROMPT;
 
     // Step 1: Main generation (Sonnet, max 4096 tokens, web search only if user opted in)
@@ -518,6 +542,7 @@ async function generate(){
     var txt=await callAPI(sys,uc,4096,mainOpts);
     if(!txt.trim())throw new Error("Empty response");
     var draftTalk=JSON.parse(fixJSON(txt));
+    draftTalk = deepCleanCitations(draftTalk);
 
     // Step 2: Combined critique-and-fix in a single Haiku call
     // If clean, returns {"verdict":"clean"}; if issues, returns the corrected JSON in same schema as draft
@@ -529,6 +554,7 @@ async function generate(){
       var critTxt = await callAPI(critiqueSystem, critiqueInput, 4096, {model:MODEL_CRITIC});
       if (critTxt && critTxt.trim()) {
         var parsed = JSON.parse(fixJSON(critTxt));
+        parsed = deepCleanCitations(parsed);
         // If verdict is "clean", keep draft. Otherwise the parsed object IS the corrected talk.
         if (parsed.verdict === "clean") {
           finalTalk = draftTalk;
@@ -625,7 +651,7 @@ async function sendChat(){
   try{
     if(S.talk){
       var txt=await callAPI("Modify this content. Current JSON:\n"+JSON.stringify(S.talk)+"\n\nApply changes, return COMPLETE updated JSON same schema. ONLY JSON.",msg,6144);
-      try{var upd=JSON.parse(fixJSON(txt));if(upd&&upd.title){S.talk=upd;S.sec=0;S.dg=null;S.msgs.push({r:"a",t:"\u2713 Updated!"})}else S.msgs.push({r:"a",t:txt.slice(0,400)})}catch(e2){S.msgs.push({r:"a",t:txt.slice(0,400)})}
+      try{var upd=JSON.parse(fixJSON(txt));upd=deepCleanCitations(upd);if(upd&&upd.title){S.talk=upd;S.sec=0;S.dg=null;S.msgs.push({r:"a",t:"\u2713 Updated!"})}else S.msgs.push({r:"a",t:txt.slice(0,400)})}catch(e2){S.msgs.push({r:"a",t:txt.slice(0,400)})}
     }else{S.topic=msg;S.msgs.push({r:"a",t:'Topic set to "'+msg+'". Hit Generate!'})}
   }catch(e){S.msgs.push({r:"a",t:"Error: "+e.message})}
   S.chatBusy=false;render();
@@ -661,6 +687,7 @@ async function submitFeedback(){
       6144
     );
     var parsed=JSON.parse(fixJSON(txt));
+    parsed=deepCleanCitations(parsed);
     if(parsed&&parsed.title){S.talk=parsed;S.showAns=false;S.userPick="";S.showFeedback=false;S.feedbackText="";S.podScript="";S.msgs.push({r:"a",t:"\u2713 Question corrected based on your feedback!"})}
   }catch(e){S.msgs.push({r:"a",t:"Error correcting: "+e.message})}
   S.feedbackBusy=false;render();
