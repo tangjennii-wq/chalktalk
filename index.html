@@ -826,6 +826,14 @@ function renderMain(){
     for(var ki=0;ki<(t.summary_points||[]).length;ki++)h+='<div style="display:flex;gap:9px;align-items:flex-start;margin-bottom:7px;font-size:13px;color:rgba(255,255,255,.85);line-height:1.4"><span style="background:rgba(255,255,255,.15);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+(ki+1)+'</span>'+esc(t.summary_points[ki])+'</div>';
     h+='</div></div></div>';
   }
+
+  // ═══ FOOTER ═══
+  h+='<div style="margin-top:32px;padding:20px 16px;border-top:1px solid #e2dfe8;text-align:center;font-size:11px;color:#9490a6;line-height:1.7">';
+  h+='© 2026 <a href="https://www.linkedin.com/in/tangjennii/" target="_blank" style="color:#702b9d;text-decoration:none;font-weight:600">Jennifer Tang, MD</a> · Internal Medicine, Nephrology<br>';
+  h+='Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" style="color:#702b9d;text-decoration:none">CC BY-NC-SA 4.0</a><br>';
+  h+='<span style="color:#b8b3c4">A teaching tool, free for educational use.</span>';
+  h+='</div>';
+
   return h;
 }
 
