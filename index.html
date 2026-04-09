@@ -424,7 +424,162 @@ var LECTURE_PROMPT = 'You are a senior Internal Medicine educator (general IM ac
 var BOARDS_PROMPT = 'You are an ABIM board-question writer for general Internal Medicine (all subspecialties). Match the question to whatever specialty the topic belongs to; do NOT default to nephrology unless the topic is clearly renal.\n\nINTERNAL REASONING PROCESS (think through this BEFORE writing the JSON, do not include in output):\n1. What is the highest-yield, board-relevant teaching point on this topic?\n2. What clinical scenario would discriminate someone who knows the concept from someone who doesn\'t?\n3. What are the classic distractors that test common misconceptions or competing diagnoses?\n4. What is the unambiguously correct answer per current guidelines, and why is it correct?\n5. For each wrong answer, what specific reasoning error or knowledge gap would lead to picking it?\n6. Is there ANY ambiguity in the answer? If yes, revise so the correct answer is unambiguously best.\n\nOnly after completing this reasoning, write the question. The vignette MUST be clinically realistic. The correct answer MUST be clearly best per current guidelines, not just defensible.\n\nCRITICAL: When GUIDELINE REFERENCE CONTEXT is provided below, anchor the correct answer, explanation, and board pearls to those specific guideline recommendations. Cite guideline name and year in the explanation. UWorld/AMBOSS-style vignette with stem, 5 choices A-E (one correct), explanation, why wrong answers wrong, 5 board pearls, teaching points.\n\nONLY JSON:\n{"title":"","subtitle":"","guideline_sources":[""],"question":{"stem":"","choices":[{"letter":"A","text":"","correct":false},{"letter":"B","text":"","correct":true},{"letter":"C","text":"","correct":false},{"letter":"D","text":"","correct":false},{"letter":"E","text":"","correct":false}],"correct_letter":"B","explanation":"","wrong_explanations":[{"letter":"A","why":""},{"letter":"C","why":""},{"letter":"D","why":""},{"letter":"E","why":""}]},"board_pearls":["","","","",""],"teaching_points":["","",""],"summary_points":[""],"visual_memory_card":{"top_left":"","top_right":"","bottom_left":"","bottom_right":"","center":""}}';
 
 // ═══════════ STATE ═══════════
-var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, wantWebSearch:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false };
+var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, wantWebSearch:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false, showSaved:false, savedSearch:"", savedFlash:"" };
+
+// ═══════════ SAVED LIBRARY (localStorage) ═══════════
+function loadSavedTalks(){try{return JSON.parse(localStorage.getItem("ct_saved_talks")||"[]")}catch(e){return[]}}
+function writeSavedTalks(arr){try{localStorage.setItem("ct_saved_talks",JSON.stringify(arr));return true}catch(e){alert("Storage full or unavailable. Try exporting to JSON instead.");return false}}
+function saveCurrentTalk(){
+  if(!S.talk)return;
+  var arr=loadSavedTalks();
+  // dedupe by title+style+timestamp-hash; just append a fresh entry each save
+  var entry={
+    id:"t_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
+    savedAt:new Date().toISOString(),
+    topic:S.topic,
+    style:S.style,
+    talk:S.talk,
+    podScript:S.podScript||"",
+    dg:S.dg||null,
+    glRef:S.glRef||null
+  };
+  arr.unshift(entry);
+  if(writeSavedTalks(arr)){S.savedFlash="\u2713 Saved to library";render();setTimeout(function(){S.savedFlash="";render()},2200)}
+}
+function deleteSavedTalk(id){
+  if(!confirm("Delete this saved chalk talk? This cannot be undone."))return;
+  var arr=loadSavedTalks().filter(function(e){return e.id!==id});
+  writeSavedTalks(arr);render();
+}
+function loadSavedTalk(id){
+  var arr=loadSavedTalks();var entry=arr.find(function(e){return e.id===id});
+  if(!entry)return;
+  S.topic=entry.topic||"";S.style=entry.style||"lecture";S.talk=entry.talk;S.podScript=entry.podScript||"";S.dg=entry.dg||null;S.glRef=entry.glRef||null;
+  S.sec=0;S.showAns=false;S.userPick="";S.msgs=[];S.error="";S.podShow=false;S.podPlaying=false;S.showSaved=false;
+  render();window.scrollTo(0,0);
+}
+function exportTalkJSON(id){
+  var arr=loadSavedTalks();var entry=id?arr.find(function(e){return e.id===id}):{savedAt:new Date().toISOString(),topic:S.topic,style:S.style,talk:S.talk,podScript:S.podScript,dg:S.dg,glRef:S.glRef};
+  if(!entry)return;
+  var blob=new Blob([JSON.stringify(entry,null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob);var a=document.createElement("a");
+  a.href=url;a.download=(entry.talk&&entry.talk.title?entry.talk.title:"chalk-talk").replace(/[^a-z0-9]+/gi,"-").toLowerCase()+".json";
+  a.click();URL.revokeObjectURL(url);
+}
+function exportLibraryJSON(){
+  var arr=loadSavedTalks();
+  if(arr.length===0){alert("No saved talks to export.");return}
+  var blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),count:arr.length,talks:arr},null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob);var a=document.createElement("a");
+  a.href=url;a.download="chalk-talk-library-"+new Date().toISOString().slice(0,10)+".json";
+  a.click();URL.revokeObjectURL(url);
+}
+function importLibraryJSON(file){
+  var r=new FileReader();
+  r.onload=function(){try{
+    var data=JSON.parse(r.result);
+    var incoming=Array.isArray(data)?data:(data.talks||[data]);
+    var arr=loadSavedTalks();
+    var existingIds={};arr.forEach(function(e){existingIds[e.id]=true});
+    var added=0;
+    incoming.forEach(function(e){
+      if(!e.id)e.id="t_"+Date.now()+"_"+Math.random().toString(36).slice(2,7);
+      if(!existingIds[e.id]&&e.talk){arr.unshift(e);added++}
+    });
+    writeSavedTalks(arr);alert("Imported "+added+" talk"+(added===1?"":"s")+".");render();
+  }catch(err){alert("Could not parse JSON file: "+err.message)}};
+  r.readAsText(file);
+}
+function exportTalkPDF(){
+  if(!S.talk)return;
+  // Build a clean printable HTML doc and open print dialog (user picks "Save as PDF")
+  var t=S.talk;var isBQ=!!(t.question);var vm=t.visual_memory_card;
+  var w=window.open("","_blank","width=900,height=1100");
+  if(!w){alert("Popup blocked. Allow popups for this page to export PDF.");return}
+  var css='<style>'+
+    '@page{margin:0.6in}'+
+    'body{font-family:Georgia,"Times New Roman",serif;color:#2d2a3e;line-height:1.55;max-width:780px;margin:0 auto;padding:20px}'+
+    'h1{color:#330662;font-size:26px;border-bottom:3px solid #702b9d;padding-bottom:10px;margin-bottom:6px}'+
+    'h2{color:#330662;font-size:18px;margin-top:24px;border-left:4px solid #702b9d;padding-left:12px}'+
+    'h3{color:#4a1a7a;font-size:15px;margin-top:18px}'+
+    '.subtitle{color:#6b6780;font-style:italic;margin-bottom:18px;font-size:14px}'+
+    '.badge{display:inline-block;background:#eee6f3;color:#330662;padding:3px 10px;border-radius:12px;font-size:11px;margin-right:6px}'+
+    '.section{margin:18px 0;padding:14px 16px;background:#faf8fc;border-radius:8px;border:1px solid #eee6f3;page-break-inside:avoid}'+
+    '.pearl{background:#fdf6ed;border-left:4px solid #e67e22;padding:10px 14px;margin:8px 0;border-radius:4px;page-break-inside:avoid}'+
+    '.tip{background:#fdf0ee;border-left:4px solid #c0392b;padding:8px 12px;margin:8px 0;border-radius:4px;font-size:13px;color:#8a3a2a;page-break-inside:avoid}'+
+    '.choice{padding:8px 12px;margin:6px 0;border:1px solid #e2dfe8;border-radius:6px}'+
+    '.choice.correct{background:#f0f7f0;border-color:#2d8a2d;font-weight:600}'+
+    '.vmc{background:#330662;color:#fff;padding:20px;border-radius:12px;margin-top:24px;page-break-inside:avoid}'+
+    '.vmc h2{color:#ab82c5;border-color:#ab82c5}'+
+    '.vmc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}'+
+    '.vmc-cell{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:10px}'+
+    '.vmc-cell .lbl{color:#ab82c5;font-size:11px;font-weight:700;margin-bottom:4px}'+
+    '.anchor{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:12px;text-align:center;margin:12px 0;font-weight:600}'+
+    'ul{margin:8px 0 8px 22px}li{margin-bottom:5px}'+
+    '.footer{margin-top:30px;padding-top:14px;border-top:1px solid #e2dfe8;font-size:11px;color:#9490a6;text-align:center}'+
+    'img{max-width:100%;height:auto;border-radius:8px;margin:10px 0}'+
+    '@media print{.noprint{display:none}}'+
+    '</style>';
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+escapeHtml(t.title||"Chalk Talk")+'</title>'+css+'</head><body>';
+  html+='<div class="noprint" style="background:#eee6f3;padding:12px 16px;border-radius:8px;margin-bottom:20px;text-align:center"><b>Tip:</b> Use your browser\'s "Save as PDF" option in the print dialog. <button onclick="window.print()" style="margin-left:10px;background:#330662;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:600">Print / Save as PDF</button></div>';
+  html+='<h1>'+escapeHtml(t.title||"")+'</h1>';
+  if(t.subtitle)html+='<p class="subtitle">'+escapeHtml(t.subtitle)+'</p>';
+  html+='<div><span class="badge">'+(isBQ?"Boards Review":"Lecture")+'</span>';
+  var glS=(t.guideline_sources&&t.guideline_sources.length?t.guideline_sources:(S.glRef?S.glRef.sources.slice(0,4):[]))||[];
+  glS.forEach(function(g){html+='<span class="badge">'+escapeHtml(g)+'</span>'});
+  html+='</div>';
+
+  if(isBQ&&t.question){
+    var q=t.question;
+    html+='<h2>Clinical Vignette</h2><div class="section"><p>'+escapeHtml(q.stem)+'</p>';
+    (q.choices||[]).forEach(function(c){html+='<div class="choice'+(c.correct?" correct":"")+'"><b>'+c.letter+'.</b> '+escapeHtml(c.text)+(c.correct?" \u2713":"")+'</div>'});
+    html+='</div>';
+    html+='<h2>Answer: '+escapeHtml(q.correct_letter||"")+'</h2><div class="section"><p>'+escapeHtml(q.explanation||"")+'</p>';
+    if(q.wrong_explanations&&q.wrong_explanations.length){html+='<h3>Why other answers are wrong</h3><ul>';q.wrong_explanations.forEach(function(w){html+='<li><b>'+escapeHtml(w.letter)+'.</b> '+escapeHtml(w.why)+'</li>'});html+='</ul>'}
+    html+='</div>';
+    if(t.board_pearls&&t.board_pearls.length){html+='<h2>High-Yield Board Pearls</h2>';t.board_pearls.forEach(function(p,i){html+='<div class="pearl"><b>'+(i+1)+'.</b> '+escapeHtml(p)+'</div>'})}
+    if(t.teaching_points&&t.teaching_points.length){html+='<h2>Key Teaching Points</h2><ul>';t.teaching_points.forEach(function(p){html+='<li>'+escapeHtml(p)+'</li>'});html+='</ul>'}
+  }
+
+  if(!isBQ&&t.sections&&t.sections.length){
+    html+='<h2>Lecture Outline</h2>';
+    t.sections.forEach(function(sec,i){
+      html+='<div class="section"><h3>'+(i+1)+'. '+escapeHtml(sec.heading||"")+' <span style="color:#9490a6;font-weight:normal;font-size:12px">('+escapeHtml(sec.minutes||"")+')</span></h3>';
+      if(sec.content)html+='<p>'+escapeHtml(sec.content).replace(/\n/g,"<br>")+'</p>';
+      if(sec.bullets&&sec.bullets.length){html+='<ul>';sec.bullets.forEach(function(b){html+='<li>'+escapeHtml(b)+'</li>'});html+='</ul>'}
+      if(sec.board_tip)html+='<div class="tip"><b>Board Tip:</b> '+escapeHtml(sec.board_tip)+'</div>';
+      html+='</div>';
+    });
+  }
+
+  if(S.dg&&S.dg.imgB64)html+='<h2>Visual Aid</h2><img src="data:image/png;base64,'+S.dg.imgB64+'" alt="Visual aid">';
+
+  if(vm||(t.summary_points&&t.summary_points.length)){
+    html+='<div class="vmc"><h2>Visual Memory Card</h2>';
+    if(vm){
+      html+='<div class="vmc-grid">';
+      [["I",vm.top_left],["II",vm.top_right],["III",vm.bottom_left],["IV",vm.bottom_right]].forEach(function(p){
+        html+='<div class="vmc-cell"><div class="lbl">'+p[0]+'</div><div>'+escapeHtml(p[1]||"")+'</div></div>';
+      });
+      html+='</div>';
+      if(vm.center)html+='<div class="anchor">\uD83D\uDD11 '+escapeHtml(vm.center)+'</div>';
+    }
+    if(t.summary_points&&t.summary_points.length){
+      html+='<h3 style="color:#ab82c5;margin-top:14px">Key Takeaways</h3><ul>';
+      t.summary_points.forEach(function(p){html+='<li>'+escapeHtml(p)+'</li>'});
+      html+='</ul>';
+    }
+    html+='</div>';
+  }
+
+  if(S.podScript){html+='<h2>Podcast Script</h2><div class="section" style="white-space:pre-wrap;font-size:13px">'+escapeHtml(S.podScript)+'</div>'}
+
+  html+='<div class="footer">Generated by Chalk Talk \u2014 a teaching tool by Jennifer Tang, MD<br>NYU Langone \u00B7 '+new Date().toLocaleDateString()+'</div>';
+  html+='</body></html>';
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(function(){try{w.focus();w.print()}catch(e){}},400);
+}
+function escapeHtml(s){if(s==null)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 var loadTimer = null;
 
 // ═══════════ UTILS ═══════════
@@ -711,8 +866,44 @@ function diagSVG(dg){
 // ═══════════ RENDER ═══════════
 function render(){
   var root=document.getElementById("root");
+  if(S.showSaved){root.innerHTML=renderSaved();bindSaved();return}
   if(S.showLib){root.innerHTML=renderLib();bindLib();return}
   root.innerHTML=renderMain();bindMain();
+}
+
+function renderSaved(){
+  var all=loadSavedTalks();
+  var filtered=all;
+  if(S.savedSearch.trim()){var q=S.savedSearch.toLowerCase();filtered=all.filter(function(e){return(e.topic||"").toLowerCase().indexOf(q)>=0||(e.talk&&e.talk.title||"").toLowerCase().indexOf(q)>=0})}
+  var h='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><button id="savedBack" style="background:#fff;border:1px solid #e2dfe8;border-radius:8px;padding:8px 14px;color:#6b6780;font-size:13px">\u2190 Back</button><h2 style="font-size:20px;font-weight:700;color:#330662;margin:0;flex:1">\uD83D\uDCDA My Saved Talks <span style="font-size:13px;color:#9490a6;font-weight:500">('+all.length+')</span></h2></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:16px"><button id="exportLibBtn" style="background:#fff;border:1px solid #e2dfe8;border-radius:8px;padding:9px 14px;color:#702b9d;font-size:12px;font-weight:600">\u2B07 Export library</button><button id="importLibBtn" style="background:#fff;border:1px solid #e2dfe8;border-radius:8px;padding:9px 14px;color:#702b9d;font-size:12px;font-weight:600">\u2B06 Import library</button><input type="file" id="importLibInput" accept=".json" style="display:none"></div>';
+  h+='<input id="savedSearchIn" value="'+esc(S.savedSearch)+'" placeholder="Search your saved talks..." style="width:100%;background:#fff;border:1.5px solid #e2dfe8;border-radius:12px;padding:12px 16px;font-size:14px;outline:none;margin-bottom:16px">';
+  if(filtered.length===0){
+    h+='<div style="background:#fff;border:1px dashed #d0cce0;border-radius:12px;padding:40px 20px;text-align:center;color:#9490a6"><div style="font-size:42px;margin-bottom:10px">\uD83D\uDCD6</div><div style="font-size:14px;font-weight:600;color:#6b6780;margin-bottom:6px">'+(all.length===0?"No saved talks yet":"No matches")+'</div><div style="font-size:12px">'+(all.length===0?"Generate a chalk talk and click \u2605 Save to add it here.":"Try a different search term.")+'</div></div>';
+  } else {
+    for(var i=0;i<filtered.length;i++){
+      var e=filtered[i];var t=e.talk||{};var isBQ=!!(t.question);
+      var dateStr=new Date(e.savedAt).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+      h+='<div style="background:#fff;border:1px solid #e2dfe8;border-left:4px solid '+(isBQ?"#e67e22":"#702b9d")+';border-radius:12px;padding:14px 16px;margin-bottom:10px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;color:#330662;line-height:1.3">'+esc(t.title||e.topic||"Untitled")+'</div>';
+      if(t.subtitle)h+='<div style="font-size:12px;color:#9490a6;margin-top:2px">'+esc(t.subtitle)+'</div>';
+      h+='<div style="display:flex;gap:8px;margin-top:6px;font-size:11px;color:#9490a6"><span style="background:'+(isBQ?"#fdf0ee":"#eee6f3")+';color:'+(isBQ?"#8a3a2a":"#702b9d")+';padding:2px 8px;border-radius:10px;font-weight:600">'+(isBQ?"\uD83D\uDCCB Boards":"\uD83C\uDF93 Lecture")+'</span><span>'+dateStr+'</span></div></div></div>';
+      h+='<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><button class="loadTalkBtn" data-id="'+e.id+'" style="flex:1;min-width:90px;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:8px;padding:9px 12px;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Open</button><button class="exportTalkBtn" data-id="'+e.id+'" style="background:#fff;border:1px solid #e2dfe8;border-radius:8px;padding:9px 12px;color:#6b6780;font-size:12px;font-weight:600;cursor:pointer">JSON</button><button class="delTalkBtn" data-id="'+e.id+'" style="background:#fff;border:1px solid #e8c8c0;border-radius:8px;padding:9px 12px;color:#c0392b;font-size:12px;font-weight:600;cursor:pointer">Delete</button></div>';
+      h+='</div>';
+    }
+  }
+  return h;
+}
+
+function bindSaved(){
+  document.getElementById("savedBack").onclick=function(){S.showSaved=false;render()};
+  var ss=document.getElementById("savedSearchIn");if(ss)ss.oninput=function(e){S.savedSearch=e.target.value;render();var f=document.getElementById("savedSearchIn");if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}};
+  document.querySelectorAll(".loadTalkBtn").forEach(function(b){b.onclick=function(){loadSavedTalk(b.dataset.id)}});
+  document.querySelectorAll(".exportTalkBtn").forEach(function(b){b.onclick=function(){exportTalkJSON(b.dataset.id)}});
+  document.querySelectorAll(".delTalkBtn").forEach(function(b){b.onclick=function(){deleteSavedTalk(b.dataset.id)}});
+  var el=document.getElementById("exportLibBtn");if(el)el.onclick=exportLibraryJSON;
+  var il=document.getElementById("importLibBtn");if(il)il.onclick=function(){document.getElementById("importLibInput").click()};
+  var ili=document.getElementById("importLibInput");if(ili)ili.onchange=function(e){if(e.target.files[0])importLibraryJSON(e.target.files[0])};
 }
 
 function renderLib(){
@@ -735,7 +926,8 @@ function renderLib(){
 function renderMain(){
   var h='';
   // Header
-  h+='<div style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:#330662;border-radius:16px;margin-bottom:10px;color:#fff"><div style="flex:1"><h1 style="font-size:24px;color:#fff;margin:0">Chalk Talk</h1><p style="font-size:13px;color:#ab82c5;margin:2px 0 0">10-Min Teaching Generator \u00B7 ABIM Board-Aligned \u00B7 <span style="font-size:10px;color:#8a6aaf">Created by <a href="https://www.linkedin.com/in/tangjennii/" target="_blank" style="color:#ab82c5;text-decoration:underline">Jennifer Tang, MD</a></span></p></div><div style="text-align:right"><div style="font-size:10px;color:'+(localStorage.getItem("claude_api_key")?"#8fc99a":"#e8a87c")+'">'+(localStorage.getItem("claude_api_key")?"\u2713 API key set":"\u26A0 No API key")+'</div><button id="resetClaudeKey" style="background:none;border:none;color:#8a6aaf;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">'+(localStorage.getItem("claude_api_key")?"Change key":"Set key")+'</button></div></div>';
+  var savedCount=loadSavedTalks().length;
+  h+='<div style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:#330662;border-radius:16px;margin-bottom:10px;color:#fff"><div style="flex:1"><h1 style="font-size:24px;color:#fff;margin:0">Chalk Talk</h1><p style="font-size:13px;color:#ab82c5;margin:2px 0 0">10-Min Teaching Generator \u00B7 ABIM Board-Aligned \u00B7 <span style="font-size:10px;color:#8a6aaf">Created by <a href="https://www.linkedin.com/in/tangjennii/" target="_blank" style="color:#ab82c5;text-decoration:underline">Jennifer Tang, MD</a></span></p></div><div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px"><button id="myLibBtn" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">\uD83D\uDCDA My Library'+(savedCount>0?' <span style="background:#ab82c5;color:#330662;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">'+savedCount+'</span>':'')+'</button><div style="font-size:10px;color:'+(localStorage.getItem("claude_api_key")?"#8fc99a":"#e8a87c")+'">'+(localStorage.getItem("claude_api_key")?"\u2713 API key set":"\u26A0 No API key")+'</div><button id="resetClaudeKey" style="background:none;border:none;color:#8a6aaf;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">'+(localStorage.getItem("claude_api_key")?"Change key":"Set key")+'</button></div></div>';
   // Description
   h+='<p style="font-size:11px;color:#9490a6;text-align:center;margin:0 0 16px;line-height:1.5;padding:0 12px">Enter a topic and choose Lecture (physiology-first) or Boards (vignette-driven) to generate a 10-min chalk talk. Content is grounded in open-access society guidelines (KDIGO, AHA/ACC, ATS, IDSA, ACG, AASLD, ADA, ACR, AAN, SCCM, ASH, ASCO/NCCN) and anchored to landmark trials. Upload your own references (PDFs, PowerPoints, board review) for additional grounding. Use the chatbox to refine.</p>';
   // Topic
@@ -767,6 +959,11 @@ function renderMain(){
     h+='<div style="margin-top:24px;border-top:3px solid #702b9d;padding-top:24px">';
     // Title
     h+='<div style="background:linear-gradient(135deg,#330662,#702b9d);border-radius:16px;padding:28px 24px;text-align:center;margin-bottom:16px"><h1 style="font-size:24px;font-weight:700;margin:0;color:#fff;line-height:1.2">'+esc(t.title)+'</h1><p style="font-size:14px;color:#ab82c5;margin:6px 0 0">'+esc(t.subtitle||"")+'</p><div style="display:flex;justify-content:center;gap:8px;margin-top:12px"><span style="background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:12px;color:#fff">'+(isBQ?"\uD83D\uDCCB Boards Review":"\uD83C\uDF93 Lecture")+'</span></div></div>';
+
+    // Save / Export action bar
+    h+='<div style="background:#fff;border:1.5px solid #eee6f3;border-radius:12px;padding:12px 14px;margin-bottom:16px"><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="saveTalkBtn" style="flex:1;min-width:120px;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:8px;padding:11px 14px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">\u2605 Save to Library</button><button id="pdfTalkBtn" style="flex:1;min-width:110px;background:#fff;border:1.5px solid #702b9d;border-radius:8px;padding:11px 14px;color:#702b9d;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">\uD83D\uDCC4 Export PDF</button><button id="jsonTalkBtn" style="background:#fff;border:1.5px solid #e2dfe8;border-radius:8px;padding:11px 14px;color:#6b6780;font-size:13px;font-weight:600;cursor:pointer">{ } JSON</button></div>';
+    if(S.savedFlash)h+='<div style="margin-top:10px;padding:8px 12px;background:#f0f7f0;border:1px solid #b8d8b8;border-radius:8px;color:#2d6a2d;font-size:12px;font-weight:600;text-align:center">'+esc(S.savedFlash)+'</div>';
+    h+='</div>';
 
     // Guideline Sources Badge
     var glSources = (t.guideline_sources && t.guideline_sources.length > 0 && t.guideline_sources[0]) ? t.guideline_sources : (S.glRef ? S.glRef.sources.slice(0,4) : null);
@@ -905,6 +1102,10 @@ function bindMain(){
   var pp=document.getElementById("podPlayBtn");if(pp)pp.onclick=playPod;
   document.querySelectorAll(".rateBtn").forEach(function(b){b.onclick=function(){S.podRate=parseFloat(b.dataset.r);if(S.podPlaying){speechSynthesis.cancel();S.podPlaying=false}render()}});
   var pt=document.getElementById("podToggle");if(pt)pt.onclick=function(){S.podShow=!S.podShow;render()};
+  var mlb=document.getElementById("myLibBtn");if(mlb)mlb.onclick=function(){S.showSaved=true;S.savedSearch="";render()};
+  var stb=document.getElementById("saveTalkBtn");if(stb)stb.onclick=saveCurrentTalk;
+  var ptb=document.getElementById("pdfTalkBtn");if(ptb)ptb.onclick=exportTalkPDF;
+  var jtb=document.getElementById("jsonTalkBtn");if(jtb)jtb.onclick=function(){exportTalkJSON(null)};
 }
 
 // ═══════════ INIT ═══════════
