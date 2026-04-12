@@ -479,10 +479,36 @@ var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"
 
 // ═══════════ SAVED LIBRARY (localStorage) ═══════════
 function loadSavedTalks(){try{return JSON.parse(localStorage.getItem("ct_saved_talks")||"[]")}catch(e){return[]}}
-function writeSavedTalks(arr){try{localStorage.setItem("ct_saved_talks",JSON.stringify(arr));return true}catch(e){alert("Storage full or unavailable. Try exporting to JSON instead.");return false}}
+function writeSavedTalks(arr){try{localStorage.setItem("ct_saved_talks",JSON.stringify(arr));return true}catch(e){
+  var n=arr.length;
+  alert("Storage limit reached ("+n+" talks saved). Options:\n\n\u2022 Export your library to JSON as a backup, then delete some older talks\n\u2022 Or clear browser data for this site and re-import from the backup\n\nEach talk now averages ~15 KB, so this shouldn't happen under normal use.");
+  return false;
+}}
+// One-time migration: strip base64 images from any legacy saved entries to free storage
+(function migrateStripImages(){
+  try{
+    if(localStorage.getItem("ct_migrated_v2")==="1")return;
+    var arr=JSON.parse(localStorage.getItem("ct_saved_talks")||"[]");
+    var changed=false;
+    arr.forEach(function(e){
+      if(e.dg&&e.dg.imgB64){
+        e.dg={hadImage:true, svg:e.dg.svg||null};
+        changed=true;
+      }
+    });
+    if(changed)localStorage.setItem("ct_saved_talks",JSON.stringify(arr));
+    localStorage.setItem("ct_migrated_v2","1");
+  }catch(e){/* ignore */}
+})();
 function saveCurrentTalk(){
   if(!S.talk)return;
   var arr=loadSavedTalks();
+  // Strip the diagram image to avoid localStorage quota (PNG base64 can be 1-3MB each).
+  // Preserve a flag so Open knows a visual was generated; user can regenerate on load.
+  var dgLite=null;
+  if(S.dg){
+    dgLite={hadImage:!!S.dg.imgB64, svg:S.dg.svg||null};
+  }
   var entry={
     id:"t_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
     savedAt:new Date().toISOString(),
@@ -490,7 +516,7 @@ function saveCurrentTalk(){
     style:S.style,
     talk:S.talk,
     podScript:S.podScript||"",
-    dg:S.dg||null,
+    dg:dgLite,
     glRef:S.glRef||null
   };
   arr.unshift(entry);
@@ -509,7 +535,14 @@ function loadSavedTalk(id){
   render();window.scrollTo(0,0);
 }
 function exportTalkJSON(id){
-  var arr=loadSavedTalks();var entry=id?arr.find(function(e){return e.id===id}):{savedAt:new Date().toISOString(),topic:S.topic,style:S.style,talk:S.talk,podScript:S.podScript,dg:S.dg,glRef:S.glRef};
+  var arr=loadSavedTalks();var entry;
+  if(id){
+    entry=arr.find(function(e){return e.id===id});
+  } else {
+    // Live export: strip image from current dg too so JSON stays portable
+    var dgLite=S.dg?{hadImage:!!S.dg.imgB64, svg:S.dg.svg||null}:null;
+    entry={savedAt:new Date().toISOString(),topic:S.topic,style:S.style,talk:S.talk,podScript:S.podScript,dg:dgLite,glRef:S.glRef};
+  }
   if(!entry)return;
   var blob=new Blob([JSON.stringify(entry,null,2)],{type:"application/json"});
   var url=URL.createObjectURL(blob);var a=document.createElement("a");
@@ -1070,7 +1103,7 @@ function renderMain(){
         h+='</div>'}
     }
     // Diagram
-    h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:18px 20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><span style="font-size:28px">\uD83C\uDFA8</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Visual Aid</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.dgMode==="ai"?(S.dg&&S.dg.imgB64?"Generated with Nano Banana 2":"AI illustration (needs Gemini key)"):"Simple flowchart (no key needed)")+'</div></div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.dgBusy?".6":"1")+'">'+(S.dgBusy?"Generating...":S.dg?"\u21BB Regenerate":"Generate")+'</button></div>';
+    h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:18px 20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><span style="font-size:28px">\uD83C\uDFA8</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Visual Aid</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.dgMode==="ai"?(S.dg&&S.dg.imgB64?"Generated with Nano Banana 2":(S.dg&&S.dg.hadImage?"\u2728 This saved talk had an image \u2014 click regenerate to restore":"AI illustration (needs Gemini key)")):"Simple flowchart (no key needed)")+'</div></div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.dgBusy?".6":"1")+'">'+(S.dgBusy?"Generating...":(S.dg&&(S.dg.imgB64||S.dg.svg))?"\u21BB Regenerate":"Generate")+'</button></div>';
     h+='<div style="display:flex;gap:6px;margin-bottom:4px"><button class="dgModeBtn" data-m="ai" style="flex:1;background:'+(S.dgMode==="ai"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="ai"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="ai"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer">\uD83C\uDFA8 AI Illustration (Nano Banana)</button><button class="dgModeBtn" data-m="svg" style="flex:1;background:'+(S.dgMode==="svg"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="svg"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="svg"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer">\uD83D\uDCC8 Simple Diagram (no key)</button></div>';
     if(S.dgErr)h+='<div style="color:#c0392b;font-size:12px;margin-top:10px">'+esc(S.dgErr)+(S.dgMode==="ai"?' <a href="#" id="resetKey" style="color:#702b9d;text-decoration:underline">Reset API key</a>':"")+'</div>';
     if(S.dg&&S.dg.imgB64)h+='<div style="background:#fff;border-radius:12px;padding:8px;margin-top:12px;border:1px solid #eee6f3"><img src="data:image/png;base64,'+S.dg.imgB64+'" style="width:100%;height:auto;display:block;border-radius:8px"/></div>';
