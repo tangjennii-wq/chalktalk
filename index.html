@@ -3,7 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Chalk Talk · NYU Langone Teaching Generator</title>
+<title>Chalk Talk \u00b7 10-minute teaching generator for IM educators</title>
+<meta name="description" content="Type any internal medicine topic, get a structured 10-minute chalk talk grounded in current society guidelines, peer-reviewed by a second model. Free for educators.">
+<meta name="author" content="Jennifer Tang, MD">
+<meta name="keywords" content="medical education, chalk talk, internal medicine, ABIM, KDIGO, AHA/ACC, residency teaching, AI medical education">
+<meta name="theme-color" content="#330662">
+
+<!-- Open Graph (Facebook, Slack, LinkedIn, iMessage) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Chalk Talk">
+<meta property="og:title" content="Chalk Talk \u2014 10-minute teaching generator">
+<meta property="og:description" content="Type any IM topic, get a structured chalk talk grounded in current society guidelines and peer-reviewed by a second model. Free for educators.">
+<meta property="og:image" content="https://tangjennii-wq.github.io/chalk-talk/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Chalk Talk \u2014 a 10-minute teaching generator for internal medicine educators">
+<meta property="og:url" content="https://tangjennii-wq.github.io/chalk-talk/">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chalk Talk \u2014 10-minute teaching generator">
+<meta name="twitter:description" content="Type any IM topic, get a structured chalk talk grounded in current society guidelines and peer-reviewed by a second model.">
+<meta name="twitter:image" content="https://tangjennii-wq.github.io/chalk-talk/og-image.png">
+<meta name="twitter:image:alt" content="Chalk Talk \u2014 10-minute teaching generator">
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23330662'/><text x='32' y='44' text-anchor='middle' fill='white' font-family='Georgia,serif' font-weight='700' font-size='38'>C</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f8f7fa;color:#2d2a3e;min-height:100vh}
@@ -484,7 +509,7 @@ function getGuidelinesForTopic(topic) {
 
 var LECTURE_PROMPT = 'You are a senior Internal Medicine educator (general IM across all subspecialties: cardiology, pulmonary, GI/hepatology, endocrine, ID, heme/onc, rheum, neuro, nephrology, critical care, allergy, derm, psych, geriatrics, palliative). Identify the relevant specialty from the topic and teach from that field. Default to general IM reasoning unless a specialty is explicitly stated; do NOT default to nephrology.\n\nINTERNAL REASONING PROCESS (think through this BEFORE writing the JSON, do not include in output):\n1. What is the precise mechanism at the cellular/molecular level?\n2. What is the organ-level physiology that follows from that mechanism?\n3. What is the pathophysiology — how does the disease disrupt normal physiology?\n4. What clinical findings logically follow from the pathophysiology?\n5. What is the workup strategy and why does each test answer a specific question?\n6. What is the current first-line treatment per the relevant society guideline, AND what is the mechanism by which it works?\n7. What landmark trials established this approach?\n8. Verify each step is internally consistent — does the treatment section logically follow from the mechanism section? Are there any contradictions?\n\nOnly after completing this reasoning, write the chalk talk. The physiology section MUST be deep and mechanistic, not superficial. Every clinical recommendation MUST trace back to a mechanistic rationale.\n\n10-min chalk talk. Physiology FIRST and DEEP. CRITICAL: When GUIDELINE REFERENCE CONTEXT is provided below, you MUST anchor your treatment recommendations and board tips to those specific guideline recommendations and cite the specific guideline name and year (e.g., "per KDIGO 2024" or "per 2022 AHA/ACC/HFSA"). Also cite the landmark trials listed. If the user has uploaded reference documents, use those as PRIMARY sources. If web search is available and the topic involves recent treatment standards, search for the most current guideline recommendations before writing.\n\nInclude treatment per the guideline society appropriate to the topic (AHA/ACC cardio, ATS/ERS pulm, ACG/AASLD GI/liver, ADA endo, IDSA ID, ASH heme, ASCO/NCCN onc, ACR rheum, AAN neuro, KDIGO nephro, SCCM ICU, AAAAI allergy, AAD derm, APA psych, AGS geriatrics, ACOG/NAMS women\'s health, USPSTF prevention, AAHPM palliative). 3-4 sections.\n\n\nCITATIONS: Output a \"references\" array of {id,source,year,society,url,type}. After every clinical claim, drug/dose, or trial mention, append inline marker(s) like [1] or [1][2]. Reuse IDs across sections. Cite trials and guidelines from the GUIDELINE REFERENCE CONTEXT above; do NOT fabricate URLs (omit the url field if unknown).\n\nVMC QUADRANTS (visual_memory_card): top_left = MECHANISM (cellular/molecular driver, 1 line); top_right = FINDINGS (key clinical/lab features, 1 line); bottom_left = WORKUP (the diagnostic move that locks it in, 1 line); bottom_right = TREATMENT (the first-line intervention with mechanism, 1 line). center = leave empty (deprecated). Each <=8 words. These exact 4 categories - do not deviate.\nONLY JSON:\n{"title":"","subtitle":"","guideline_sources":[""],"references":[{"id":1,"source":"","year":2024,"society":"","url":"","type":"guideline"}],"sections":[{"heading":"","minutes":"2-3 min","points":[""],"teaching_pearl":"","board_tip":""}],"summary_points":[""],"visual_memory_card":{"top_left":"","top_right":"","bottom_left":"","bottom_right":"","center":""}}';
 
-var BOARDS_PROMPT = 'You are an ABIM board-question writer for general Internal Medicine (all subspecialties). Match the question to whatever specialty the topic belongs to; do NOT default to nephrology unless the topic is clearly renal.\n\nINTERNAL REASONING PROCESS (think through this BEFORE writing the JSON, do not include in output):\n1. What is the highest-yield, board-relevant teaching point on this topic?\n2. What clinical scenario would discriminate someone who knows the concept from someone who doesn\'t?\n3. What are the classic distractors that test common misconceptions or competing diagnoses?\n4. What is the unambiguously correct answer per current guidelines, and why is it correct?\n5. For each wrong answer, what specific reasoning error or knowledge gap would lead to picking it?\n6. Is there ANY ambiguity in the answer? If yes, revise so the correct answer is unambiguously best.\n\nOnly after completing this reasoning, write the question. The vignette MUST be clinically realistic. The correct answer MUST be clearly best per current guidelines, not just defensible.\n\nCRITICAL: When GUIDELINE REFERENCE CONTEXT is provided below, anchor the correct answer, explanation, and board pearls to those specific guideline recommendations. Cite guideline name and year in the explanation. UWorld/AMBOSS-style vignette with stem, 5 choices A-E (one correct), explanation, why wrong answers wrong, 5 board pearls, teaching points.\n\n\nCITATIONS: Output a \"references\" array of {id,source,year,society,url,type}. After every clinical claim, drug/dose, or trial mention, append inline marker(s) like [1] or [1][2]. Reuse IDs across sections. Cite trials and guidelines from the GUIDELINE REFERENCE CONTEXT above; do NOT fabricate URLs (omit the url field if unknown).\n\nVMC QUADRANTS (visual_memory_card): top_left = VIGNETTE KEY (the discriminating clue in the stem, <=8 words); top_right = MECHANISM (1-line pathophys behind the answer); bottom_left = PEARL (the high-yield take-home); bottom_right = PITFALL (the most common wrong-answer trap). center = leave empty (deprecated). Each <=8 words. These exact 4 categories - do not deviate.\nONLY JSON:\n{"title":"","subtitle":"","guideline_sources":[""],"references":[{"id":1,"source":"","year":2024,"society":"","url":"","type":"guideline"}],"question":{"stem":"","choices":[{"letter":"A","text":"","correct":false},{"letter":"B","text":"","correct":true},{"letter":"C","text":"","correct":false},{"letter":"D","text":"","correct":false},{"letter":"E","text":"","correct":false}],"correct_letter":"B","explanation":"","wrong_explanations":[{"letter":"A","why":""},{"letter":"C","why":""},{"letter":"D","why":""},{"letter":"E","why":""}]},"board_pearls":["","","","",""],"teaching_points":["","",""],"summary_points":[""],"visual_memory_card":{"top_left":"","top_right":"","bottom_left":"","bottom_right":"","center":""}}';
+var BOARDS_PROMPT = 'You are an ABIM board-question writer for general Internal Medicine (all subspecialties). Match the question to whatever specialty the topic belongs to; do NOT default to nephrology unless the topic is clearly renal.\n\nINTERNAL REASONING PROCESS (think through this BEFORE writing the JSON, do not include in output):\n1. What is the highest-yield, board-relevant teaching point on this topic?\n2. What clinical scenario would discriminate someone who knows the concept from someone who doesn\'t?\n3. What are the classic distractors that test common misconceptions or competing diagnoses?\n4. What is the unambiguously correct answer per current guidelines, and why is it correct?\n5. For each wrong answer, what specific reasoning error or knowledge gap would lead to picking it?\n6. Is there ANY ambiguity in the answer? If yes, revise so the correct answer is unambiguously best.\n\nOnly after completing this reasoning, write the question. The vignette MUST be clinically realistic. The correct answer MUST be clearly best per current guidelines, not just defensible.\n\nCRITICAL: When GUIDELINE REFERENCE CONTEXT is provided below, anchor the correct answer, explanation, and board pearls to those specific guideline recommendations. Cite guideline name and year in the explanation. UWorld/AMBOSS-style vignette with stem, 5 choices A-E (one correct), explanation, why wrong answers wrong, 5 board pearls, teaching points.\n\n\nCITATIONS: Output a \"references\" array of {id,source,year,society,url,type}. After every clinical claim, drug/dose, or trial mention, append inline marker(s) like [1] or [1][2]. Reuse IDs across sections. Cite trials and guidelines from the GUIDELINE REFERENCE CONTEXT above; do NOT fabricate URLs (omit the url field if unknown).\n\nVMC QUADRANTS (visual_memory_card): top_left = VIGNETTE KEY (the discriminating clue in the stem, <=8 words); top_right = MECHANISM (1-line pathophys behind the answer); bottom_left = PEARL (the high-yield take-home); bottom_right = PITFALL (the most common wrong-answer trap). center = leave empty (deprecated). Each <=8 words. These exact 4 categories - do not deviate.\nBOARD PEARLS REQUIREMENT: Each of the 5 board_pearls MUST be a high-yield fact directly tied to THIS specific clinical scenario (not generic disease facts). Cover, in order: (1) the mechanism behind the correct answer, (2) a specific guideline/year recommendation that supports the correct answer, (3) a discriminating feature that separates the correct answer from the most popular distractor, (4) a related landmark trial or named criterion the question tests, (5) the most common wrong-answer trap and why the trap is incorrect. Pearls should make a resident MORE LIKELY to get the next variant of this question right.\nONLY JSON:\n{"title":"","subtitle":"","guideline_sources":[""],"references":[{"id":1,"source":"","year":2024,"society":"","url":"","type":"guideline"}],"question":{"stem":"","choices":[{"letter":"A","text":"","correct":false},{"letter":"B","text":"","correct":true},{"letter":"C","text":"","correct":false},{"letter":"D","text":"","correct":false},{"letter":"E","text":"","correct":false}],"correct_letter":"B","explanation":"","wrong_explanations":[{"letter":"A","why":""},{"letter":"C","why":""},{"letter":"D","why":""},{"letter":"E","why":""}]},"board_pearls":["","","","",""],"teaching_points":["","",""],"summary_points":[""],"visual_memory_card":{"top_left":"","top_right":"","bottom_left":"","bottom_right":"","center":""}}';
 
 // ═══════════ PROXY CONFIG (Cloudflare Worker — see DEPLOY.md) ═══════════
 // When `enabled` is true, the app routes API calls through your Worker so
@@ -494,6 +519,34 @@ var PROXY_CONFIG = {
   enabled: false,
   url: ""
 };
+
+// ═══════════ DIAGRAM TEMPLATES (canonical mechanism diagrams) ═══════════
+// Pre-built SVG figures for high-yield concepts. When a topic matches the
+// keywords of a template, "Simple Diagram" mode renders this directly (no
+// API call), giving textbook-quality output every time. Falls back to the
+// generative SVG flowchart when no template matches.
+var DIAGRAM_TEMPLATES = [
+  {
+    slug: "aki-three-bucket",
+    title: "Acute Kidney Injury — Three-Bucket Framework",
+    specialty: "Nephrology",
+    keywords: ["aki","acute kidney injury","prerenal","postrenal","atn","kidney injury","renal failure"],
+    svg: '<svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif"><rect width="900" height="600" fill="#fafafd"/><text x="450" y="42" text-anchor="middle" font-family="Georgia,serif" font-size="26" font-weight="700" fill="#330662">Acute Kidney Injury</text><text x="450" y="68" text-anchor="middle" font-size="13" fill="#9490a6" letter-spacing="1.5">THE THREE-BUCKET FRAMEWORK</text><rect x="395" y="98" width="110" height="46" rx="10" fill="#330662" stroke="#702b9d" stroke-width="2"/><text x="450" y="127" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">AKI</text><path d="M 410 144 Q 280 175 200 215" stroke="#c4c0d0" stroke-width="1.8" fill="none"/><path d="M 450 144 L 450 215" stroke="#c4c0d0" stroke-width="1.8" fill="none"/><path d="M 490 144 Q 620 175 700 215" stroke="#c4c0d0" stroke-width="1.8" fill="none"/><g><rect x="60" y="215" width="240" height="330" rx="12" fill="#fff" stroke="#702b9d" stroke-width="1.5"/><rect x="60" y="215" width="240" height="58" rx="12" fill="#702b9d"/><rect x="60" y="260" width="240" height="13" fill="#702b9d"/><text x="180" y="245" text-anchor="middle" fill="#fff" font-size="17" font-weight="700" letter-spacing="0.5">PRERENAL</text><text x="180" y="265" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-size="11.5">~60% of cases</text><text x="78" y="298" font-size="10.5" font-weight="700" fill="#702b9d" letter-spacing="0.6">DECREASED PERFUSION</text><text x="78" y="324" font-size="13" fill="#2d2a3e">• Hypovolemia (GI, hemorrhage)</text><text x="78" y="348" font-size="13" fill="#2d2a3e">• Cardiogenic (CHF, MI)</text><text x="78" y="372" font-size="13" fill="#2d2a3e">• Sepsis (distributive shock)</text><text x="78" y="396" font-size="13" fill="#2d2a3e">• Hepatorenal syndrome</text><text x="78" y="420" font-size="13" fill="#2d2a3e">• Renal artery stenosis</text><line x1="78" y1="442" x2="282" y2="442" stroke="#eee6f3" stroke-width="1"/><text x="78" y="464" font-size="10" font-weight="700" fill="#9490a6" letter-spacing="0.6">URINE STUDIES</text><text x="78" y="486" font-size="12" fill="#6b6780">FENa &lt; 1%</text><text x="78" y="506" font-size="12" fill="#6b6780">BUN/Cr &gt; 20</text><text x="78" y="526" font-size="12" fill="#6b6780">Uosm &gt; 500, UNa &lt; 20</text></g><g><rect x="330" y="215" width="240" height="330" rx="12" fill="#fff" stroke="#c0392b" stroke-width="1.5"/><rect x="330" y="215" width="240" height="58" rx="12" fill="#c0392b"/><rect x="330" y="260" width="240" height="13" fill="#c0392b"/><text x="450" y="245" text-anchor="middle" fill="#fff" font-size="17" font-weight="700" letter-spacing="0.5">INTRINSIC</text><text x="450" y="265" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-size="11.5">~35% of cases</text><text x="348" y="298" font-size="10.5" font-weight="700" fill="#c0392b" letter-spacing="0.6">PARENCHYMAL DAMAGE</text><text x="348" y="324" font-size="13" fill="#2d2a3e">• ATN (ischemic, toxic, contrast)</text><text x="348" y="348" font-size="13" fill="#2d2a3e">• AIN (drugs, infection)</text><text x="348" y="372" font-size="13" fill="#2d2a3e">• GN (lupus, IgA, ANCA, anti-GBM)</text><text x="348" y="396" font-size="13" fill="#2d2a3e">• Vascular (TMA, cholesterol emboli)</text><text x="348" y="420" font-size="13" fill="#2d2a3e">• Tubular obstruction (myeloma, TLS)</text><line x1="348" y1="442" x2="552" y2="442" stroke="#eee6f3" stroke-width="1"/><text x="348" y="464" font-size="10" font-weight="700" fill="#9490a6" letter-spacing="0.6">URINE STUDIES</text><text x="348" y="486" font-size="12" fill="#6b6780">FENa &gt; 2%</text><text x="348" y="506" font-size="12" fill="#6b6780">BUN/Cr &lt; 15</text><text x="348" y="526" font-size="12" fill="#6b6780">Muddy brown casts (ATN)</text></g><g><rect x="600" y="215" width="240" height="330" rx="12" fill="#fff" stroke="#5a8acd" stroke-width="1.5"/><rect x="600" y="215" width="240" height="58" rx="12" fill="#5a8acd"/><rect x="600" y="260" width="240" height="13" fill="#5a8acd"/><text x="720" y="245" text-anchor="middle" fill="#fff" font-size="17" font-weight="700" letter-spacing="0.5">POSTRENAL</text><text x="720" y="265" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-size="11.5">~5% of cases</text><text x="618" y="298" font-size="10.5" font-weight="700" fill="#5a8acd" letter-spacing="0.6">OBSTRUCTION</text><text x="618" y="324" font-size="13" fill="#2d2a3e">• Bladder outlet (BPH, tumor)</text><text x="618" y="348" font-size="13" fill="#2d2a3e">• Bilateral ureteral (stones, RPF)</text><text x="618" y="372" font-size="13" fill="#2d2a3e">• Neurogenic bladder</text><text x="618" y="396" font-size="13" fill="#2d2a3e">• External compression (mass)</text><text x="618" y="420" font-size="13" fill="#2d2a3e">• Catheter blockage</text><line x1="618" y1="442" x2="822" y2="442" stroke="#eee6f3" stroke-width="1"/><text x="618" y="464" font-size="10" font-weight="700" fill="#9490a6" letter-spacing="0.6">DIAGNOSIS</text><text x="618" y="486" font-size="12" fill="#6b6780">Renal US: hydronephrosis</text><text x="618" y="506" font-size="12" fill="#6b6780">Post-void residual &gt; 100 mL</text><text x="618" y="526" font-size="12" fill="#6b6780">Bladder cath → dx + tx</text></g><text x="450" y="582" text-anchor="middle" font-size="9.5" font-weight="700" fill="#9490a6" letter-spacing="2">CHALK TALK · NEPHROLOGY · KDIGO 2024 FRAMEWORK</text></svg>'
+  }
+];
+
+function findDiagramTemplate(topic){
+  if(!topic||!DIAGRAM_TEMPLATES||!DIAGRAM_TEMPLATES.length)return null;
+  var t=topic.toLowerCase();
+  for(var i=0;i<DIAGRAM_TEMPLATES.length;i++){
+    var tpl=DIAGRAM_TEMPLATES[i];
+    var kws=tpl.keywords||[];
+    for(var j=0;j<kws.length;j++){
+      if(t.indexOf(kws[j].toLowerCase())>=0)return tpl;
+    }
+  }
+  return null;
+}
 
 // ═══════════ DEMO SAMPLES (auto-generated by generate_samples.js) ═══════════
 // To populate: run `ANTHROPIC_API_KEY=sk-ant-... node generate_samples.js`
@@ -1808,12 +1861,15 @@ async function generate(){
 
     // Step 2: Combined critique-and-fix in a single Haiku call
     // If clean, returns {"verdict":"clean"}; if issues, returns the corrected JSON in same schema as draft
-    var critiqueSystem = "You are a senior board-certified Internal Medicine attending acting as a peer reviewer for a chalk talk. Review for: (1) factual errors in physiology or pharmacology, (2) outdated treatment recommendations vs current major society guidelines (KDIGO/AHA/ACC/ATS/ACG/AASLD/ADA/IDSA/ASH/ASCO/ACR/AAN/SCCM/AAAAI/AAD/APA/AGS/ACOG/USPSTF/AAHPM), (3) internal contradictions, (4) wrong landmark trial attributions, (5) shallow physiology. Do NOT flag stylistic preferences.\n\nReturn ONLY ONE of these two JSON formats (no other text):\n\nIF the talk is accurate and needs no changes:\n{\"verdict\":\"clean\"}\n\nIF you find substantive accuracy issues, return the FULL corrected chalk talk in the EXACT same JSON schema as the draft, with all your fixes applied. Do NOT include a verdict field in this case — just return the corrected talk JSON directly.";
+    var critiqueSystem = "You are a senior board-certified Internal Medicine attending acting as a peer reviewer for a chalk talk. Review for: (1) factual errors in physiology or pharmacology, (2) outdated treatment recommendations vs current major society guidelines (KDIGO/AHA/ACC/ATS/ACG/AASLD/ADA/IDSA/ASH/ASCO/ACR/AAN/SCCM/AAAAI/AAD/APA/AGS/ACOG/USPSTF/AAHPM), (3) internal contradictions, (4) wrong landmark trial attributions, (5) shallow physiology. Do NOT flag stylistic preferences.\n\nBOARDS-MODE ANSWER VERIFICATION (when the input contains a 'question' field): EXPLICITLY re-derive the correct answer. (a) Restate the discriminating clinical features in the stem. (b) Identify the most relevant guideline and year (KDIGO, AHA/ACC, ADA, etc.) or landmark trial. (c) Confirm whether the marked correct_letter is truly best per that guideline. (d) If a different choice is better, fix correct_letter and rewrite explanation + wrong_explanations accordingly. Do not allow ambiguous or 'defensibly correct' answers to stand \u2014 the correct answer must be UNAMBIGUOUSLY best per current guidelines.\n\nReturn ONLY ONE of these two JSON formats (no other text):\n\nIF the talk is accurate and needs no changes:\n{\"verdict\":\"clean\"}\n\nIF you find substantive accuracy issues, return the FULL corrected chalk talk in the EXACT same JSON schema as the draft, with all your fixes applied. Do NOT include a verdict field in this case — just return the corrected talk JSON directly.";
     var critiqueInput = "Topic: " + S.topic + "\n\nDraft chalk talk to review:\n" + JSON.stringify(draftTalk);
 
     var finalTalk = draftTalk;
     try {
-      var critTxt = await callAPI(critiqueSystem, critiqueInput, 4096, {model:MODEL_CRITIC});
+      // Boards-mode review uses Opus (high-stakes binary correctness, multi-step guideline reasoning).
+      // Lecture-mode review stays on Haiku (cheaper, sufficient for prose accuracy review).
+      var criticModel = (S.style === "boards") ? MODEL_MAIN : MODEL_CRITIC;
+      var critTxt = await callAPI(critiqueSystem, critiqueInput, 4096, {model:criticModel});
       if (critTxt && critTxt.trim()) {
         var parsed = JSON.parse(fixJSON(critTxt));
         parsed = deepCleanCitations(parsed);
@@ -1866,7 +1922,14 @@ async function genDiagram(){
   var sm=parts.join(". ");
 
   if(S.dgMode==="svg"){
-    // SVG flowchart via Claude (no API key needed)
+    // First, check for a canonical template
+    var tpl=findDiagramTemplate(S.topic);
+    if(tpl){
+      S.dg={template:tpl};
+      S.dgBusy=false;render();
+      return;
+    }
+    // No template match — fall back to generative SVG flowchart via Claude (no API key needed)
     try{
       var txt=await callAPI('Generate a polished medical-diagram JSON for a teaching chalk talk. Format: {"nodes":[{"id":"n1","label":"Concise label","type":"title"}],"arrows":[{"from":"n1","to":"n2","label":"optional edge label"}]}. AIM FOR 7-9 nodes (max 10). Use a clear hierarchical/flow structure: ONE title node at the top (the key concept), then mechanism nodes, leading to clinical findings or treatment nodes. Node types: "title" (main concept, exactly 1), "accent" (important steps), "formula" (equations/criteria), "warning" (red flags / pitfalls), "box" (default). Keep labels SHORT (2-5 words) so they render cleanly. Add edge labels for "leads to", "blocks", "increases", etc when meaningful. No x/y coordinates \u2014 layout is computed automatically.',"Diagram for: "+sm,1000);
       var p=JSON.parse(fixJSON(txt));
@@ -2065,6 +2128,30 @@ async function downloadVMC(){
   }catch(e){
     S.savedFlash="Couldn't generate image: "+e.message;render();
     setTimeout(function(){S.savedFlash="";render()},4500);
+  }
+}
+
+function copyBoardsQuestion(){
+  if(!S.talk||!S.talk.question)return;
+  var q=S.talk.question;
+  var lines=[];
+  if(S.talk.title)lines.push(S.talk.title);
+  lines.push("");
+  lines.push(String(q.stem||""));
+  lines.push("");
+  (q.choices||[]).forEach(function(ch){lines.push(ch.letter+". "+ch.text)});
+  lines.push("");
+  lines.push("Answer: "+(q.correct_letter||""));
+  var text=lines.join("\n");
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      S.savedFlash="\u2713 Question copied to clipboard (no explanations included).";render();
+      setTimeout(function(){S.savedFlash="";render()},2800);
+    }).catch(function(){
+      prompt("Couldn't auto-copy. Select and copy manually:",text);
+    });
+  } else {
+    prompt("Copy this question:",text);
   }
 }
 
@@ -2347,7 +2434,7 @@ function renderMain(){
     // BOARDS
     if(isBQ){
       var q=t.question;
-      h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:22px 20px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#702b9d;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">\uD83D\uDCCB Clinical Vignette</div><p style="font-size:15px;color:#2d2a3e;line-height:1.7;margin:0">'+esc(q.stem)+'</p><div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">';
+      h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:22px 20px;margin-bottom:16px;position:relative"><button id="copyQBtn" style="position:absolute;top:14px;right:14px;background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:5px 11px;color:#702b9d;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.01em;transition:all .15s ease;display:flex;align-items:center;gap:5px" onmouseover="this.style.background=\<p style="font-size:15px;color:#2d2a3e;line-height:1.7;margin:0">'+esc(q.stem)+'</p><div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">';
       for(var ci=0;ci<(q.choices||[]).length;ci++){var ch=q.choices[ci];var picked=S.userPick===ch.letter;var isRight=ch.correct&&S.showAns;var isWrongPick=picked&&!ch.correct&&S.showAns;var isWrongNotPicked=!ch.correct&&!picked&&S.showAns;var borderStyle=isRight?"2px solid #2d8a2d":isWrongPick?"2px solid #c0392b":picked&&!S.showAns?"2px solid #702b9d":isWrongNotPicked?"1px solid #e8c8c0":"1px solid #e2dfe8";var bgStyle=isRight?"#f0f7f0":isWrongPick?"#fdf0ee":picked&&!S.showAns?"#eee6f3":"#fff";var textColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":"#4a4660";var letterColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":picked&&!S.showAns?"#702b9d":"#702b9d";var suffix=isRight?" \u2713":isWrongPick?" \u2717":"";h+='<button class="choiceBtn" data-letter="'+ch.letter+'" style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;border:'+borderStyle+';background:'+bgStyle+';cursor:'+(S.showAns?"default":"pointer")+';text-align:left;width:100%"><span style="font-weight:700;color:'+letterColor+';font-size:14px;flex-shrink:0">'+ch.letter+'.</span><span style="font-size:14px;color:'+textColor+';line-height:1.5">'+esc(ch.text)+suffix+'</span></button>'}
       h+='</div>';
       if(!S.showAns){
@@ -2391,11 +2478,12 @@ function renderMain(){
         h+='</div>'}
     }
     // Diagram
-    h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:18px 20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><span style="font-size:28px">\uD83C\uDFA8</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Visual Aid</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.dgMode==="ai"?(S.dg&&S.dg.imgB64?"Generated with Nano Banana 2":(S.dg&&S.dg.hadImage?"\u2728 This saved talk had an image \u2014 click regenerate to restore":"AI illustration (needs Gemini key)")):"Simple flowchart (no key needed)")+'</div></div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.dgBusy?".6":"1")+'">'+(S.dgBusy?"Generating...":(S.dg&&(S.dg.imgB64||S.dg.svg))?"\u21BB Regenerate":"Generate")+'</button></div>';
+    h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:18px 20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><span style="font-size:28px">\uD83C\uDFA8</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Visual Aid</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.dgMode==="ai"?(S.dg&&S.dg.imgB64?"Generated with Nano Banana 2":(S.dg&&S.dg.hadImage?"\u2728 This saved talk had an image \u2014 click regenerate to restore":"AI illustration (needs Gemini key)")):(findDiagramTemplate(S.topic)?"\uD83D\uDCD0 Canonical template available":"Simple flowchart (no key needed)"))+'</div></div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.dgBusy?".6":"1")+'">'+(S.dgBusy?"Generating...":(S.dg&&(S.dg.imgB64||S.dg.svg))?"\u21BB Regenerate":"Generate")+'</button></div>';
     h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px"><button class="dgModeBtn" data-m="ai" style="background:'+(S.dgMode==="ai"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="ai"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="ai"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 8px;font-size:11px;font-weight:600;cursor:pointer">\uD83C\uDFA8 Gemini Image</button><button class="dgModeBtn" data-m="openai" style="background:'+(S.dgMode==="openai"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="openai"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="openai"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 8px;font-size:11px;font-weight:600;cursor:pointer">\uD83D\uDCAC ChatGPT Image</button><button class="dgModeBtn" data-m="svg" style="background:'+(S.dgMode==="svg"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="svg"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="svg"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 8px;font-size:11px;font-weight:600;cursor:pointer">\uD83D\uDCC8 Simple Diagram</button></div>';
     if(S.dgErr)h+='<div style="color:#c0392b;font-size:12px;margin-top:10px">'+esc(S.dgErr)+(S.dgMode==="ai"?' <a href="#" id="resetKey" style="color:#702b9d;text-decoration:underline">Reset API key</a>':"")+'</div>';
     if(S.dg&&S.dg.imgB64)h+='<div style="background:#fff;border-radius:12px;padding:8px;margin-top:12px;border:1px solid #eee6f3"><img src="data:image/png;base64,'+S.dg.imgB64+'" style="width:100%;height:auto;display:block;border-radius:8px"/></div>';
     if(S.dg&&S.dg.svg)h+='<div style="background:#2d2a3e;border-radius:12px;padding:20px;margin-top:12px">'+diagSVG(S.dg.svg)+'</div>';
+    if(S.dg&&S.dg.template)h+='<div style="background:#fff;border-radius:12px;padding:14px;margin-top:12px;border:1px solid #e8e6f0;box-shadow:0 1px 3px rgba(45,42,62,0.05)"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 4px"><span style="font-size:10px;font-weight:700;color:#702b9d;text-transform:uppercase;letter-spacing:0.09em">\uD83D\uDCD0 Canonical diagram</span><span style="font-size:10px;color:#9490a6;font-weight:500">'+esc(S.dg.template.specialty||"")+'</span></div>'+S.dg.template.svg+'</div>';
     h+='</div>';
     // Podcast
     h+='<div style="background:#fff;border:2px solid #330662;border-radius:14px;padding:18px 20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px"><span style="font-size:28px">\uD83C\uDFA7</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Audio Podcast</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.podScript?"Listen while walking or driving":"Generate podcast narration")+'</div></div>';
@@ -2504,6 +2592,7 @@ function bindMain(){
   var exb=document.getElementById("examplesBtn");if(exb)exb.onclick=function(){S.showExamples=true;render()};
   document.querySelectorAll(".landingSampleBtn").forEach(function(b){b.onclick=function(){loadSample(b.dataset.slug)}});
   var dvb=document.getElementById("downloadVMCBtn");if(dvb)dvb.onclick=downloadVMC;
+  var cqb=document.getElementById("copyQBtn");if(cqb)cqb.onclick=copyBoardsQuestion;
   var lmb=document.getElementById("landingMoreBtn");if(lmb)lmb.onclick=function(){S.showExamples=true;render()};
   var mtb=document.getElementById("modeToggleBtn");if(mtb)mtb.onclick=function(){
     if(!PROXY_CONFIG.enabled||!PROXY_CONFIG.url){alert("Demo proxy isn\'t configured for this build. Stay on your own key.");return}
