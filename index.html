@@ -51,22 +51,22 @@ textarea,input[type=text]{font-family:inherit}
 
 /* Mobile-compact overrides — applied at narrow widths */
 @media (max-width: 640px) {
-  .app { padding: 14px 12px 40px !important; max-width: 100% !important; }
-  /* Header: tighter padding, smaller title, single-line tagline */
-  [data-mhdr] { padding: 14px 16px 12px !important; gap: 10px !important; align-items: flex-start !important; }
-  [data-mhdr-title] { font-size: 20px !important; line-height: 1.05 !important; white-space: nowrap !important; }
-  [data-mhdr-sub] { font-size: 10px !important; line-height: 1.35 !important; margin: 2px 0 0 !important; }
-  /* Description tighter on mobile */
-  [data-mdesc] { font-size: 11px !important; margin: 0 0 12px !important; padding: 0 4px !important; line-height: 1.45 !important; }
-  /* Examples gallery: 2-up grid, smaller cards */
-  [data-msample-grid] { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
-  [data-msample-grid] button { padding: 8px 10px !important; min-height: 64px !important; }
-  [data-msample-grid] button > span:first-child { font-size: 11.5px !important; line-height: 1.25 !important; }
+  .app { padding: 12px 10px 32px !important; max-width: 100% !important; }
+  /* Header: very compact on mobile, title above buttons row */
+  [data-mhdr] { padding: 12px 14px !important; gap: 8px !important; flex-wrap: wrap !important; flex-direction: column !important; align-items: stretch !important; border-radius: 12px !important; }
+  [data-mhdr-title] { font-size: 18px !important; line-height: 1.05 !important; white-space: nowrap !important; }
+  [data-mhdr-sub] { font-size: 9.5px !important; line-height: 1.3 !important; margin: 1px 0 0 !important; white-space: normal !important; }
+  /* Description footer-style: tiny single line */
+  [data-mdesc] { font-size: 10.5px !important; margin: -2px 0 10px !important; padding: 0 6px !important; line-height: 1.4 !important; }
+  /* Examples gallery: 2-up tighter on mobile */
+  [data-msample-grid] { grid-template-columns: 1fr 1fr !important; gap: 5px !important; }
+  [data-msample-grid] button { padding: 7px 9px !important; min-height: 56px !important; }
+  [data-msample-grid] button > span:first-child { font-size: 11px !important; line-height: 1.2 !important; }
   /* Topic card */
-  [data-mtopic] { padding: 12px 14px !important; margin-bottom: 12px !important; border-radius: 11px !important; }
-  [data-mtopic] textarea { font-size: 13.5px !important; padding: 9px 12px !important; }
+  [data-mtopic] { padding: 10px 12px !important; margin-bottom: 10px !important; border-radius: 10px !important; }
+  [data-mtopic] textarea { font-size: 13px !important; padding: 8px 10px !important; }
   /* Generate button */
-  [data-mgen] { padding: 13px !important; font-size: 14.5px !important; }
+  [data-mgen] { padding: 12px !important; font-size: 14px !important; }
 }
 </style>
 </head>
@@ -2105,18 +2105,58 @@ async function callAPI(sys, content, maxTok, opts) {
     endpoint = "https://api.anthropic.com/v1/messages";
     headers = {"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
   }
-  var r = await fetch(endpoint, {method:"POST", headers:headers, body:JSON.stringify(body)});
-  if (useProxy) {
-    var rem = r.headers.get("X-RateLimit-Remaining");
-    if (rem !== null && rem !== "") S.rateRemaining = parseInt(rem);
+  // Try the request with up to 2 retries for transient overload (529) / unavailable (503).
+  var r, attempt = 0;
+  while (true) {
+    r = await fetch(endpoint, {method:"POST", headers:headers, body:JSON.stringify(body)});
+    if (useProxy) {
+      var rem = r.headers.get("X-RateLimit-Remaining");
+      if (rem !== null && rem !== "") S.rateRemaining = parseInt(rem);
+    }
+    // Retry transient server overload up to 2 times with backoff
+    if ((r.status === 529 || r.status === 503) && attempt < 2) {
+      var waitMs = 4000 * (attempt + 1); // 4s, then 8s
+      attempt++;
+      await new Promise(function(resolve){setTimeout(resolve, waitMs)});
+      continue;
+    }
+    break;
   }
   if(!r.ok){var e={};try{e=await r.json()}catch(x){}
     if (useProxy && r.status === 429) throw new Error("Daily demo-proxy limit reached. Switch to your own API key (top of header) for unlimited access, or come back tomorrow.");
     if (useProxy && r.status === 403) throw new Error("Demo proxy denied this origin. Open the deployed site or use your own API key.");
     if(!useProxy && (r.status===401||r.status===403)){localStorage.removeItem("claude_api_key");throw new Error("Invalid API key (cleared). Click 'Set key' to re-enter.")}
+    if (r.status === 529 || r.status === 503) throw new Error("Anthropic servers are temporarily overloaded (we retried twice). This usually clears in 1-2 minutes — please wait and click Generate again. Boards mode uses Opus which is more capacity-constrained; if it persists, try Lecture mode (uses Haiku for review).");
+    if (r.status === 408 || r.status === 504) throw new Error("Request timed out. Anthropic servers are slow right now — try again in a moment.");
+    if (r.status >= 500) throw new Error("Anthropic API server error ("+r.status+"). Try again in a moment.");
     throw new Error((e.error&&e.error.message)||"API "+r.status)}
   var d=await r.json();var txt="";for(var i=0;i<(d.content||[]).length;i++){if(d.content[i].type==="text")txt+=d.content[i].text}return txt;
 }
+
+// Try a list of models in order; fall through to the next on overload/server errors only.
+// Returns {txt, modelUsed} so the UI can show which model produced the result.
+async function callAPIWithFallback(sys, content, maxTok, models, opts) {
+  opts = opts || {};
+  var lastError;
+  for (var i = 0; i < models.length; i++) {
+    try {
+      var modelOpts = Object.assign({}, opts, {model: models[i]});
+      var txt = await callAPI(sys, content, maxTok, modelOpts);
+      return {txt: txt, modelUsed: models[i], fellBack: i > 0};
+    } catch (e) {
+      lastError = e;
+      // Only fall back on transient overload / server errors. Don't fall back on auth/key/rate-limit.
+      var msg = String(e.message || "");
+      var isOverload = /overloaded|server error|timed out|^API 5\d\d/i.test(msg);
+      if (!isOverload || i === models.length - 1) throw e;
+      console.warn("Model " + models[i] + " unavailable, falling back to " + models[i+1] + ": " + msg);
+    }
+  }
+  throw lastError || new Error("All model fallbacks failed");
+}
+
+// Sonnet 4 used as middle-tier fallback when Opus is overloaded
+var MODEL_SONNET_FALLBACK = "claude-sonnet-4-20250514";
 
 // ═══════════ ACTIONS ═══════════
 async function generate(){
@@ -2140,10 +2180,14 @@ async function generate(){
     var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + guidelineContext + depthHint + searchHint + '\nONLY JSON. Plain text values, no XML tags, no citation markup.'}];
     var sys=S.style==="boards"?BOARDS_PROMPT:LECTURE_PROMPT;
 
-    // Step 1: Main generation (Sonnet, max 4096 tokens, web search only if user opted in)
-    var mainOpts = {model:MODEL_MAIN};
+    // Step 1: Main generation with model fallback chain (Opus -> Sonnet -> Haiku)
+    var mainOpts = {};
     if (S.wantWebSearch) mainOpts.tools = [{type:"web_search_20250305",name:"web_search",max_uses:3}];
-    var maxTok=(S.style==="boards")?6144:4096; var txt=await callAPI(sys,uc,maxTok,mainOpts);
+    var mainModels = [MODEL_MAIN, MODEL_SONNET_FALLBACK, MODEL_CRITIC];
+    var maxTok=(S.style==="boards")?6144:4096;
+    var mainResult = await callAPIWithFallback(sys, uc, maxTok, mainModels, mainOpts);
+    var txt = mainResult.txt;
+    if (mainResult.fellBack) console.info("Draft generated with " + mainResult.modelUsed + " (Opus was overloaded)");
     if(!txt.trim())throw new Error("Empty response");
     var draftTalk=JSON.parse(fixJSON(txt));
     draftTalk = deepCleanCitations(draftTalk);
@@ -2155,10 +2199,14 @@ async function generate(){
 
     var finalTalk = draftTalk;
     try {
-      // Boards-mode review uses Opus (high-stakes binary correctness, multi-step guideline reasoning).
-      // Lecture-mode review stays on Haiku (cheaper, sufficient for prose accuracy review).
-      var criticModel = (S.style === "boards") ? MODEL_MAIN : MODEL_CRITIC;
-      var critTxt = await callAPI(critiqueSystem, critiqueInput, (S.style==="boards")?6144:4096, {model:criticModel});
+      // Boards-mode review prefers Opus (high-stakes accuracy); falls back to Sonnet then Haiku on overload.
+      // Lecture-mode review just uses Haiku (sufficient for prose accuracy review).
+      var criticModels = (S.style === "boards")
+        ? [MODEL_MAIN, MODEL_SONNET_FALLBACK, MODEL_CRITIC]
+        : [MODEL_CRITIC];
+      var critResult = await callAPIWithFallback(critiqueSystem, critiqueInput, (S.style==="boards")?6144:4096, criticModels);
+      var critTxt = critResult.txt;
+      if (critResult.fellBack) console.info("Critique done by " + critResult.modelUsed + " (Opus was overloaded)");
       if (critTxt && critTxt.trim()) {
         var parsed = JSON.parse(fixJSON(critTxt));
         parsed = deepCleanCitations(parsed);
@@ -2629,9 +2677,9 @@ function renderMain(){
   var h='';
   // Header
   var savedCount=loadSavedTalks().length;
-  h+='<div data-mhdr style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:#330662;border-radius:16px;margin-bottom:10px;color:#fff"><div style="flex:1"><h1 data-mhdr-title style="font-size:24px;color:#fff;margin:0;white-space:nowrap">Chalk Talk</h1><p data-mhdr-sub style="font-size:11px;color:#ab82c5;margin:3px 0 0;letter-spacing:0.015em;line-height:1.4">10-min teaching \u00B7 ABIM-aligned <span style="font-size:9.5px;color:#8a6aaf;display:inline-block">\u00B7 by <a href="https://www.linkedin.com/in/tangjennii/" target="_blank" style="color:#ab82c5;text-decoration:none;border-bottom:1px solid rgba(171,130,197,0.3)">Jennifer Tang, MD</a></span></p></div><div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px"><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button id="examplesBtn" style="background:rgba(143,201,154,.18);border:1px solid rgba(143,201,154,.45);border-radius:8px;padding:6px 12px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">\uD83D\uDCD6 Examples'+((typeof SAMPLES!=="undefined"&&SAMPLES&&SAMPLES.length)?' <span style="background:#8fc99a;color:#1a3d1a;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">'+SAMPLES.length+'</span>':'')+'</button><button id="myLibBtn" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">\uD83D\uDCDA My Library'+(savedCount>0?' <span style="background:#ab82c5;color:#330662;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">'+savedCount+'</span>':'')+'</button></div>'+((PROXY_CONFIG.enabled&&PROXY_CONFIG.url&&!S.useByok)?'<div style="font-size:10px;color:#8fc99a;margin-top:4px">\uD83D\uDEF0 Demo mode'+(S.rateRemaining!==null?' \u00B7 '+S.rateRemaining+' left today':'')+'</div><button id="modeToggleBtn" style="background:none;border:none;color:#ab82c5;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">Use my own key</button>':'<div style="font-size:10px;color:'+(localStorage.getItem("claude_api_key")?"#8fc99a":"#e8a87c")+';margin-top:4px">'+(localStorage.getItem("claude_api_key")?"\u2713 Your API key":"\u26A0 No API key")+'</div><div style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button id="resetClaudeKey" style="background:none;border:none;color:#8a6aaf;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">'+(localStorage.getItem("claude_api_key")?"Change key":"Set key")+'</button>'+((PROXY_CONFIG.enabled&&PROXY_CONFIG.url)?'<span style="color:#5a4a7a;font-size:10px">\u00B7</span><button id="modeToggleBtn" style="background:none;border:none;color:#ab82c5;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">Switch to demo mode</button>':'')+'</div>')+'</div></div>';
+  h+='<div data-mhdr style="display:flex;align-items:center;gap:14px;padding:14px 20px;background:#330662;border-radius:14px;margin-bottom:10px;color:#fff;flex-wrap:wrap"><div style="flex:1"><h1 data-mhdr-title style="font-size:20px;color:#fff;margin:0;white-space:nowrap;font-weight:700;letter-spacing:-0.01em">Chalk Talk</h1><p data-mhdr-sub style="font-size:10.5px;color:#ab82c5;margin:2px 0 0;letter-spacing:0.015em;line-height:1.35;white-space:normal">10-min teaching \u00B7 ABIM-aligned <span style="font-size:9.5px;color:#8a6aaf;display:inline-block">\u00B7 by <a href="https://www.linkedin.com/in/tangjennii/" target="_blank" style="color:#ab82c5;text-decoration:none;border-bottom:1px solid rgba(171,130,197,0.3)">Jennifer Tang, MD</a></span></p></div><div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px"><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button id="examplesBtn" style="background:rgba(143,201,154,.18);border:1px solid rgba(143,201,154,.45);border-radius:8px;padding:6px 12px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">\uD83D\uDCD6 Examples'+((typeof SAMPLES!=="undefined"&&SAMPLES&&SAMPLES.length)?' <span style="background:#8fc99a;color:#1a3d1a;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">'+SAMPLES.length+'</span>':'')+'</button><button id="myLibBtn" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 12px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">\uD83D\uDCDA My Library'+(savedCount>0?' <span style="background:#ab82c5;color:#330662;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">'+savedCount+'</span>':'')+'</button></div>'+((PROXY_CONFIG.enabled&&PROXY_CONFIG.url&&!S.useByok)?'<div style="font-size:10px;color:#8fc99a;margin-top:4px">\uD83D\uDEF0 Demo mode'+(S.rateRemaining!==null?' \u00B7 '+S.rateRemaining+' left today':'')+'</div><button id="modeToggleBtn" style="background:none;border:none;color:#ab82c5;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">Use my own key</button>':'<div style="font-size:10px;color:'+(localStorage.getItem("claude_api_key")?"#8fc99a":"#e8a87c")+';margin-top:4px">'+(localStorage.getItem("claude_api_key")?"\u2713 Your API key":"\u26A0 No API key")+'</div><div style="display:flex;gap:8px;align-items:center;justify-content:flex-end"><button id="resetClaudeKey" style="background:none;border:none;color:#8a6aaf;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">'+(localStorage.getItem("claude_api_key")?"Change key":"Set key")+'</button>'+((PROXY_CONFIG.enabled&&PROXY_CONFIG.url)?'<span style="color:#5a4a7a;font-size:10px">\u00B7</span><button id="modeToggleBtn" style="background:none;border:none;color:#ab82c5;font-size:10px;text-decoration:underline;cursor:pointer;padding:2px 0">Switch to demo mode</button>':'')+'</div>')+'</div></div>';
   // Description
-  h+='<p style="font-size:11.5px;color:#6b6780;text-align:center;margin:0 0 18px;line-height:1.55;padding:0 8px;max-width:580px;margin-left:auto;margin-right:auto">Outputs are grounded in current society guidelines and peer-reviewed by a second model before display. Upload your own references for additional grounding.</p>';
+  h+='<p style="font-size:11.5px;color:#6b6780;text-align:center;margin:0 0 18px;line-height:1.55;padding:0 8px;max-width:580px;margin-left:auto;margin-right:auto">Grounded in current society guidelines · peer-reviewed by a second model before display.</p>';
   // Landing-page Examples gallery — only when no talk loaded and samples exist
   if(!S.talk&&!S.loading&&typeof SAMPLES!=="undefined"&&SAMPLES&&SAMPLES.length>0){
     h+='<div style="margin-bottom:20px;animation:fadeIn .5s ease-out">';
@@ -2669,8 +2717,9 @@ function renderMain(){
   h+='<button class="styleBtn" data-s="lecture" style="flex:1;background:'+(S.style==="lecture"?"#fff":"transparent")+';color:'+(S.style==="lecture"?"#330662":"#6b6780")+';border:none;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:'+(S.style==="lecture"?"600":"500")+';cursor:pointer;box-shadow:'+(S.style==="lecture"?"0 1px 3px rgba(51,6,98,0.10)":"none")+';transition:all .15s ease">Lecture</button>';
   h+='<button class="styleBtn" data-s="boards" style="flex:1;background:'+(S.style==="boards"?"#fff":"transparent")+';color:'+(S.style==="boards"?"#330662":"#6b6780")+';border:none;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:'+(S.style==="boards"?"600":"500")+';cursor:pointer;box-shadow:'+(S.style==="boards"?"0 1px 3px rgba(51,6,98,0.10)":"none")+';transition:all .15s ease">Boards</button>';
   h+='</div></div>';
-  // Depth segmented control
-  h+='<div style="display:flex;align-items:center;gap:9px;flex:1;min-width:200px">';
+  // Depth segmented control — inactive in Boards mode (depth doesn't apply to a single vignette)
+  var depthInactive = (S.style === "boards");
+  h+='<div style="display:flex;align-items:center;gap:9px;flex:1;min-width:200px;opacity:'+(depthInactive?"0.4":"1")+';pointer-events:'+(depthInactive?"none":"auto")+'" title="'+(depthInactive?"Depth doesn\'t apply to Boards questions":"")+'">';
   h+='<span style="font-size:10px;font-weight:700;color:#9490a6;text-transform:uppercase;letter-spacing:0.09em;flex-shrink:0">Depth</span>';
   h+='<div style="display:inline-flex;background:#f0eef4;border-radius:9px;padding:3px;border:1px solid #e2dfe8;flex:1">';
   h+='<button class="depthBtn" data-d="concise" style="flex:1;background:'+(S.depth==="concise"?"#fff":"transparent")+';color:'+(S.depth==="concise"?"#330662":"#6b6780")+';border:none;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:'+(S.depth==="concise"?"600":"500")+';cursor:pointer;box-shadow:'+(S.depth==="concise"?"0 1px 3px rgba(51,6,98,0.10)":"none")+';transition:all .15s ease">Concise <span style="font-weight:400;color:#9b8db0;font-size:11px;margin-left:3px">(5 min)</span></button>';
@@ -2684,7 +2733,9 @@ function renderMain(){
   h+='</div>';
   // Podcast checkbox
   h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">';
-  h+='<label style="display:inline-flex;align-items:center;gap:8px;padding:8px 13px;background:'+(S.wantWebSearch?"#eee6f3":"#fff")+';border:1px solid '+(S.wantWebSearch?"#ab82c5":"#e2dfe8")+';border-radius:8px;cursor:pointer;font-size:12.5px;color:'+(S.wantWebSearch?"#330662":"#5a5670")+';transition:all .15s ease;flex:1;min-width:160px"><input type="checkbox" id="webCheck" '+(S.wantWebSearch?"checked":"")+' style="width:15px;height:15px;accent-color:#702b9d;flex-shrink:0;cursor:pointer"><span style="font-weight:'+(S.wantWebSearch?"600":"500")+'">Verify w/ current literature</span></label>';
+  // Verify w/ current literature — inactive in Boards mode (boards questions are guideline-anchored, web search unhelpful)
+  var verifyInactive = (S.style === "boards");
+  h+='<label style="display:inline-flex;align-items:center;gap:8px;padding:8px 13px;background:'+(verifyInactive?"#fafafd":(S.wantWebSearch?"#eee6f3":"#fff"))+';border:1px solid '+(verifyInactive?"#e8e6f0":(S.wantWebSearch?"#ab82c5":"#e2dfe8"))+';border-radius:8px;cursor:'+(verifyInactive?"not-allowed":"pointer")+';font-size:12.5px;color:'+(verifyInactive?"#a8a3b8":(S.wantWebSearch?"#330662":"#5a5670"))+';transition:all .15s ease;flex:1;min-width:160px;opacity:'+(verifyInactive?"0.55":"1")+';pointer-events:'+(verifyInactive?"none":"auto")+'" title="'+(verifyInactive?"Not used for Boards (questions are anchored to guidelines)":"")+'"><input type="checkbox" id="webCheck" '+(S.wantWebSearch&&!verifyInactive?"checked":"")+' '+(verifyInactive?"disabled":"")+' style="width:15px;height:15px;accent-color:#702b9d;flex-shrink:0;cursor:'+(verifyInactive?"not-allowed":"pointer")+'"><span style="font-weight:'+(S.wantWebSearch?"600":"500")+'">Verify w/ current literature</span></label>';
   h+='<label style="display:inline-flex;align-items:center;gap:8px;padding:8px 13px;background:'+(S.wantPod?"#eee6f3":"#fff")+';border:1px solid '+(S.wantPod?"#ab82c5":"#e2dfe8")+';border-radius:8px;cursor:pointer;font-size:12.5px;color:'+(S.wantPod?"#330662":"#5a5670")+';transition:all .15s ease;flex:1;min-width:160px"><input type="checkbox" id="podCheck" '+(S.wantPod?"checked":"")+' style="width:15px;height:15px;accent-color:#702b9d;flex-shrink:0;cursor:pointer"><span style="font-weight:'+(S.wantPod?"600":"500")+'">Generate audio podcast</span></label>';
   h+='</div>';
   // Generate + Reset
@@ -2734,7 +2785,7 @@ function renderMain(){
         if(ab.blueprint_weight)h+='<span style="margin-left:auto;font-size:10px;color:#9490a6;font-family:ui-monospace,Menlo,monospace">'+esc(ab.blueprint_weight)+'</span>';
         h+='</div>';
       }
-      h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:22px 20px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap"><div style="font-size:12px;font-weight:700;color:#702b9d;text-transform:uppercase;letter-spacing:.5px">\uD83D\uDCCB Clinical Vignette</div><button id="copyQBtn" style="background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:5px 11px;color:#702b9d;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.01em;transition:all .15s ease;display:inline-flex;align-items:center;gap:5px;flex-shrink:0" onmouseover="this.style.background=\<p style="font-size:15px;color:#2d2a3e;line-height:1.7;margin:0">'+esc(q.stem)+'</p><div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">';
+      h+='<div style="background:#fff;border:2px solid #702b9d;border-radius:14px;padding:22px 20px;margin-bottom:16px;overflow-wrap:break-word;word-break:break-word;max-width:100%;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap"><div style="font-size:12px;font-weight:700;color:#702b9d;text-transform:uppercase;letter-spacing:.5px">\uD83D\uDCCB Clinical Vignette</div><button id="copyQBtn" style="background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:5px 11px;color:#702b9d;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.01em;transition:all .15s ease;display:inline-flex;align-items:center;gap:5px;flex-shrink:0">\uD83D\uDCCB Copy</button></div><p style="font-size:15px;color:#2d2a3e;line-height:1.7;margin:0 0 8px;text-align:left;word-break:break-word;overflow-wrap:break-word;white-space:normal;max-width:100%">'+esc(q.stem)+'</p><div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;clear:both">';
       for(var ci=0;ci<(q.choices||[]).length;ci++){var ch=q.choices[ci];var picked=S.userPick===ch.letter;var isRight=ch.correct&&S.showAns;var isWrongPick=picked&&!ch.correct&&S.showAns;var isWrongNotPicked=!ch.correct&&!picked&&S.showAns;var borderStyle=isRight?"2px solid #2d8a2d":isWrongPick?"2px solid #c0392b":picked&&!S.showAns?"2px solid #702b9d":isWrongNotPicked?"1px solid #e8c8c0":"1px solid #e2dfe8";var bgStyle=isRight?"#f0f7f0":isWrongPick?"#fdf0ee":picked&&!S.showAns?"#eee6f3":"#fff";var textColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":"#4a4660";var letterColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":picked&&!S.showAns?"#702b9d":"#702b9d";var suffix=isRight?" \u2713":isWrongPick?" \u2717":"";h+='<button class="choiceBtn" data-letter="'+ch.letter+'" style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;border:'+borderStyle+';background:'+bgStyle+';cursor:'+(S.showAns?"default":"pointer")+';text-align:left;width:100%"><span style="font-weight:700;color:'+letterColor+';font-size:14px;flex-shrink:0">'+ch.letter+'.</span><span style="font-size:14px;color:'+textColor+';line-height:1.5">'+esc(ch.text)+suffix+'</span></button>'}
       h+='</div>';
       if(!S.showAns){
