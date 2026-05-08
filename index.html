@@ -31,8 +31,134 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23330662'/><text x='32' y='44' text-anchor='middle' fill='white' font-family='Georgia,serif' font-weight='700' font-size='38'>C</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui,-apple-system,sans-serif;background:#f8f7fa;color:#2d2a3e;min-height:100vh}
-.app{max-width:720px;margin:0 auto;padding:18px 18px 48px}
+:root{
+  --plum:#4b116f;--plum-deep:#330662;--plum-rich:#5b1685;
+  --lavender:#b99ad8;--lavender-soft:#e8defc;--lavender-bg:#efeaf8;
+  --cream:#fffdfc;--paper:#f8f6fb;
+  --ink:#24122f;--ink-muted:#7e788b;--ink-soft:#a8a3b8;
+  --line:#e5dfeb;--line-soft:#ece9f1;
+  --r-card:18px;--r-pill:14px;--r-soft:10px;
+  --shadow-soft:0 1px 2px rgba(36,18,47,0.04);--shadow-card:0 2px 8px rgba(36,18,47,0.06);
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink);min-height:100vh}
+.app{max-width:430px;margin:0 auto;padding:18px 16px 48px}
+@media (min-width:640px){.app{max-width:640px;padding:22px 24px 56px}}
+@media (min-width:1024px){.app{max-width:720px}}
+/* Toggle switch */
+.toggle-sw{position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0}
+.toggle-sw input{opacity:0;width:0;height:0}
+.toggle-sw .slider{position:absolute;cursor:pointer;inset:0;background:#dcd6e4;border-radius:24px;transition:.2s}
+.toggle-sw .slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.toggle-sw input:checked + .slider{background:var(--plum)}
+.toggle-sw input:checked + .slider:before{transform:translateX(18px)}
+.toggle-sw input:disabled + .slider{opacity:.4;cursor:not-allowed}
+/* Talk-view: sticky header + tabs + accordion + modal */
+.tk-header{position:sticky;top:0;z-index:50;background:var(--paper);padding:8px 0 0;margin:0 -16px;border-bottom:1px solid var(--line)}
+.tk-header-inner{padding:0 16px 8px}
+.tk-titlebar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.tk-titlebar .tk-back,.tk-titlebar .tk-icon{background:none;border:none;color:var(--ink);font-size:18px;padding:6px;border-radius:8px;cursor:pointer;flex-shrink:0;line-height:1;display:flex;align-items:center;justify-content:center}
+.tk-titlebar .tk-back:hover,.tk-titlebar .tk-icon:hover{background:var(--lavender-bg)}
+.tk-titlebar .tk-title{flex:1;min-width:0;font-family:Georgia,"Times New Roman",serif;font-size:15px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.005em;text-align:center}
+.tk-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tk-pill{background:var(--lavender-bg);color:var(--plum-deep);border:1px solid var(--line);border-radius:12px;padding:2px 9px;font-size:11px;font-weight:600;letter-spacing:0.005em;display:inline-flex;align-items:center;gap:4px}
+.tk-pill.green{background:#f0f7f0;color:#2d6a2d;border-color:#c8e0c8}
+.tk-pill.gray{background:var(--cream);color:var(--ink-muted);border-color:var(--line)}
+.tk-tabs{display:flex;align-items:stretch;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tk-tabs::-webkit-scrollbar{display:none}
+.tk-tab{background:none;border:none;color:var(--ink-muted);font-size:12.5px;font-weight:500;padding:8px 12px;cursor:pointer;border-bottom:2px solid transparent;flex:0 0 auto;letter-spacing:0.005em;white-space:nowrap;transition:all .15s ease}
+.tk-tab.active{color:var(--plum);font-weight:600;border-bottom-color:var(--plum)}
+.tk-tab:hover{color:var(--plum)}
+.tk-bottomnav{position:fixed;left:0;right:0;bottom:0;background:rgba(255,253,252,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);display:none;align-items:stretch;z-index:60;padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
+.tk-bottomnav button{flex:1;background:none;border:none;color:var(--ink-muted);font-size:10px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px}
+.tk-bottomnav button .ico{font-size:17px;line-height:1}
+.tk-bottomnav button.active{color:var(--plum);font-weight:600}
+@media (max-width:640px){
+  .tk-bottomnav{display:flex}
+  .app.has-talk{padding-bottom:84px}
+}
+.tk-acc{background:var(--cream);border:1px solid var(--line);border-radius:14px;margin-bottom:8px;overflow:hidden;box-shadow:var(--shadow-soft)}
+.tk-acc-head{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;width:100%;text-align:left;background:none;border:none}
+.tk-acc.open{border-color:var(--plum-rich);box-shadow:0 0 0 1px var(--plum-rich) inset,var(--shadow-soft)}
+.tk-acc-num{background:var(--lavender-bg);color:var(--plum);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex-shrink:0}
+.tk-acc.open .tk-acc-num{background:var(--plum-rich);color:#fff}
+.tk-acc-ttl{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--ink);line-height:1.3}
+.tk-acc-min{font-size:11px;color:var(--ink-muted);font-weight:500;flex-shrink:0}
+.tk-acc-chev{font-size:14px;color:var(--ink-soft);transition:transform .2s ease;flex-shrink:0}
+.tk-acc.open .tk-acc-chev{transform:rotate(180deg);color:var(--plum)}
+.tk-acc-body{padding:0 13px 14px;border-top:1px solid var(--line-soft);margin-top:2px}
+.tk-acc-body h3{font-family:Georgia,"Times New Roman",serif;font-size:14px;font-weight:600;color:var(--ink);margin:10px 0 8px;letter-spacing:-0.005em}
+.tk-acc-body ul{list-style:none;padding:0;margin:0}
+.tk-acc-body li{display:flex;gap:8px;font-size:12.5px;color:var(--ink);line-height:1.5;margin-bottom:6px}
+.tk-acc-body li:before{content:"•";color:var(--plum);font-weight:700;flex-shrink:0;margin-top:1px}
+/* Lightbox modal */
+.tk-lightbox{position:fixed;inset:0;background:rgba(20,10,28,0.86);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.tk-lightbox img{max-width:100%;max-height:90vh;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.5)}
+.tk-lightbox .tk-lightbox-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.25);color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* === Two-state UX (compose / generated) === */
+/* Capsule header (generated) */
+.tk-capsule{display:flex;align-items:center;gap:10px;background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;color:var(--ink);box-shadow:var(--shadow-soft)}
+.tk-capsule .cap-back{background:none;border:none;color:var(--ink-muted);font-size:16px;padding:2px 4px;cursor:pointer;flex-shrink:0;line-height:1}
+.tk-capsule .cap-meta{flex:1;min-width:0;font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0.005em}
+.tk-capsule .cap-meta b{font-weight:700;color:var(--ink)}
+.tk-capsule .cap-meta .sep{color:var(--ink-soft);margin:0 6px}
+.tk-capsule .cap-actions{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.tk-capsule .cap-actions button{background:none;border:none;color:var(--ink-muted);font-size:11.5px;font-weight:500;padding:5px 8px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .12s ease}
+.tk-capsule .cap-actions button:hover{background:var(--lavender-bg);color:var(--plum)}
+.tk-capsule .cap-actions button.cap-primary{color:var(--plum);font-weight:600}
+.tk-capsule .cap-actions .cap-more{padding:5px 10px}
+/* Lesson title block */
+.tk-lessontitle h1{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:700;color:var(--ink);margin:0;line-height:1.1;letter-spacing:-0.015em}
+.tk-lessontitle .ttl-sub{font-size:13px;color:var(--ink-muted);margin:4px 0 0;line-height:1.35}
+.tk-lessontitle{margin:6px 0 12px;padding:0 2px}
+.tk-lessontitle .ttl-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+/* 2x2 mode grid */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.mode-card{background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:18px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:all .15s ease;color:var(--ink-muted);font-size:13px;font-weight:600;letter-spacing:-0.005em;box-shadow:var(--shadow-soft);min-height:78px}
+.mode-card .mc-ico{font-size:18px;color:var(--ink-soft);line-height:1}
+.mode-card.active{background:linear-gradient(135deg,var(--plum-deep) 0%,var(--plum-rich) 100%);border-color:var(--plum-deep);color:#fff;box-shadow:0 4px 14px rgba(75,17,111,0.22)}
+.mode-card.active .mc-ico{color:#fff}
+.mode-card:not(.active):hover{border-color:var(--plum-rich)}
+/* Guideline row collapsed/expanded */
+.guideline-row{background:#f0f7f0;border:1px solid #b8d8b8;border-radius:14px;margin-bottom:10px;overflow:hidden}
+.guideline-row .gr-head{display:flex;align-items:center;gap:9px;padding:9px 13px;cursor:pointer;width:100%;background:none;border:none;text-align:left;font-size:12.5px;color:#2d6a2d;font-weight:600}
+.guideline-row .gr-head .gr-count{font-weight:700}
+.guideline-row .gr-head .gr-chips{flex:1;min-width:0;display:flex;gap:5px;overflow:hidden;color:#2d6a2d;font-weight:500;font-size:11px}
+.guideline-row .gr-head .gr-chev{color:#5a8a5a;font-size:13px;transition:transform .2s ease}
+.guideline-row.open .gr-head .gr-chev{transform:rotate(180deg)}
+.guideline-row .gr-body{padding:0 13px 11px;display:flex;flex-wrap:wrap;gap:5px}
+.guideline-row .gr-body span{background:#e0f0e0;border:1px solid #b8d8b8;border-radius:6px;padding:2px 8px;font-size:10.5px;color:#2d6a2d;font-weight:500}
+/* Lesson outline header */
+.outline-head{display:flex;justify-content:space-between;align-items:baseline;margin:8px 0 6px;padding:0 4px;font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em}
+.outline-head .total{font-size:11px;font-weight:500;color:var(--ink-soft);text-transform:none;letter-spacing:0}
+/* Sticky bottom composer (generated state) */
+.composer{position:fixed;left:0;right:0;bottom:0;background:rgba(255,253,252,0.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom));z-index:55;display:none;align-items:center;gap:8px}
+.composer .ref-btn{background:var(--cream);border:1px solid var(--line);border-radius:18px;padding:8px 12px;color:var(--plum);font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;flex-shrink:0;white-space:nowrap}
+.composer .revise-input{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:18px;padding:9px 14px;font-size:13px;color:var(--ink);outline:none;font-family:inherit}
+.composer .send-btn{background:linear-gradient(135deg,var(--plum-rich),var(--plum-deep));border:none;border-radius:50%;width:36px;height:36px;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;box-shadow:0 2px 8px rgba(112,43,157,0.3)}
+.composer .send-btn:disabled{background:#c9c3d6;box-shadow:none;cursor:not-allowed}
+@media (max-width:640px){.composer{display:flex}.app.has-talk{padding-bottom:84px}}
+@media (min-width:641px){.composer{display:flex;left:auto;right:auto;bottom:18px;width:min(560px,calc(100% - 36px));border-radius:24px;border:1px solid var(--line);box-shadow:0 8px 28px rgba(75,17,111,0.16);margin:0 auto}.app.has-talk{padding-bottom:90px}}
+/* Edit-settings drawer (bottom sheet) */
+.drawer-backdrop{position:fixed;inset:0;background:rgba(20,10,28,0.45);z-index:90;backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s ease}
+.drawer-backdrop.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;left:0;right:0;bottom:0;max-height:90vh;background:var(--paper);border-top-left-radius:22px;border-top-right-radius:22px;z-index:91;transform:translateY(100%);transition:transform .28s cubic-bezier(.2,.7,.2,1);display:flex;flex-direction:column;box-shadow:0 -8px 28px rgba(20,10,28,0.18)}
+.drawer.open{transform:translateY(0)}
+.drawer-handle{align-self:center;width:42px;height:4px;background:var(--line);border-radius:2px;margin:8px 0 4px}
+.drawer-head{padding:8px 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line-soft)}
+.drawer-head .drawer-title{flex:1;font-family:Georgia,"Times New Roman",serif;font-size:17px;font-weight:600;color:var(--ink)}
+.drawer-head .drawer-close{background:none;border:none;color:var(--ink-muted);font-size:20px;width:32px;height:32px;border-radius:8px;cursor:pointer}
+.drawer-body{flex:1;overflow-y:auto;padding:14px 16px 20px;-webkit-overflow-scrolling:touch}
+@media (min-width:641px){.drawer{left:50%;right:auto;width:min(520px,calc(100% - 36px));transform:translate(-50%,100%);border-radius:22px;bottom:auto;top:50%;max-height:80vh}.drawer.open{transform:translate(-50%,-50%)}}
+/* Overflow ⋯ menu */
+.overflow-menu{position:absolute;right:8px;top:48px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(20,10,28,0.12);min-width:170px;z-index:70;overflow:hidden}
+.overflow-menu button{width:100%;background:none;border:none;display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:13px;color:var(--ink);text-align:left;border-bottom:1px solid var(--line-soft)}
+.overflow-menu button:last-child{border-bottom:none}
+.overflow-menu button:hover{background:var(--lavender-bg)}
+.overflow-menu button.danger{color:#c0392b}
+/* Sticky compose CTA */
+.compose-cta{position:sticky;bottom:0;left:0;right:0;background:linear-gradient(to top,var(--paper) 60%,rgba(248,246,251,0.7) 90%,transparent 100%);padding:14px 0 calc(8px + env(safe-area-inset-bottom));margin:18px -16px 0;z-index:10}
+.compose-cta-inner{padding:0 16px}
+.compose-cta-note{font-size:10.5px;color:var(--ink-soft);text-align:center;margin:8px 0 0;display:flex;align-items:center;justify-content:center;gap:5px}
 button{cursor:pointer;font-family:inherit}
 textarea,input[type=text]{font-family:inherit}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -49,63 +175,57 @@ textarea,input[type=text]{font-family:inherit}
 .cite-pop-close:hover{background:#f0eef4;color:#330662}
 @media (max-width:600px){.cite-pop{max-width:90vw;min-width:auto}}
 
-/* Hero strip — editorial / NYT vibe: thin top band, hairline divider */
+/* Hero card — compact editorial */
 .hero-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 14px;
-  background: #fff;
-  border: 1px solid #ece9f1;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(45,42,62,0.03);
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-soft);
+  padding: 16px 18px 12px;
+  margin-bottom: 14px;
 }
-.hero-copy { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.hero-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .hero-title {
   font-family: Georgia,"Times New Roman",serif;
   font-size: 28px; font-weight: 700;
-  letter-spacing: -0.015em; color: #330662; margin: 0;
-  line-height: 1.1;
+  letter-spacing: -0.015em; color: var(--plum-deep); margin: 0;
+  line-height: 1;
 }
-.hero-byline { font-size: 10px; color: #9490a6; margin: 0; letter-spacing: 0.02em; }
-.hero-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.hero-buttons { display: flex; gap: 6px; flex-wrap: nowrap; }
-.hero-status { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #6b6780; }
+.hero-byline { font-size: 12px; color: var(--ink-muted); margin: 0; }
+.hero-byline a { color: var(--plum); text-decoration: none; }
+.hero-meta {
+  display: flex; align-items: center; gap: 0;
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px; color: var(--ink);
+}
+.hero-meta > * { display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; }
+.hero-meta > *:first-child { padding-left: 0; }
+.hero-meta > *:last-child { margin-left: auto; padding-right: 0; }
+.hero-meta .divider { width: 1px; align-self: stretch; background: var(--line); padding: 0 }
+.hero-meta a, .hero-meta button {
+  background: none; border: none; padding: 0; color: inherit; font-size: inherit;
+  cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 5px;
+}
+.hero-meta .meta-link { color: var(--plum); text-decoration: underline; text-underline-offset: 2px; font-size: 12px; }
+.hero-meta .meta-count { background: var(--lavender-soft); color: var(--plum); border-radius: 10px; padding: 1px 7px; font-size: 10.5px; font-weight: 700; }
 
-/* Mobile: stack to 2 rows but stay tight */
-@media (max-width: 600px) {
-  .hero-card {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-    padding: 10px 12px !important;
-  }
-  .hero-copy { gap: 8px !important; }
-  .hero-title { font-size: 23px !important; }
-  .hero-byline { font-size: 9.5px !important; }
-  .hero-actions { justify-content: space-between !important; }
-  .hero-buttons { flex: 1; }
-  .hero-buttons button {
-    flex: 1;
-    text-align: center !important;
-    justify-content: center !important;
-    padding: 6px 8px !important;
-    font-size: 10.5px !important;
-  }
-  .hero-status { font-size: 10px !important; }
+@media (max-width: 430px) {
+  .hero-title { font-size: 26px !important; }
+  .hero-byline { font-size: 11.5px !important; }
+  .hero-meta { font-size: 11.5px !important; }
+  .hero-meta > * { padding: 0 8px !important; }
+  .hero-meta .meta-link { font-size: 11.5px !important; }
 }
 /* Small mobile body tweaks (non-hero) */
 @media (max-width: 640px) {
   .app { padding: 12px 10px 32px !important; max-width: 100% !important; }
-  [data-mdesc] { font-size: 10.5px !important; margin: -2px 0 10px !important; padding: 0 6px !important; line-height: 1.4 !important; }
-  [data-msample-grid] { grid-template-columns: 1fr 1fr !important; gap: 5px !important; }
-  [data-msample-grid] button { padding: 7px 9px !important; min-height: 56px !important; }
-  [data-msample-grid] button > span:first-child { font-size: 11px !important; line-height: 1.2 !important; }
+  [data-msample-grid] { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
   /* Show only first 2 sample tiles on mobile */
   [data-msample-grid] > button:nth-child(n+3) { display: none !important; }
-  [data-mtopic] { padding: 10px 12px !important; margin-bottom: 10px !important; border-radius: 10px !important; }
-  [data-mtopic] textarea { font-size: 13px !important; padding: 8px 10px !important; }
-  [data-mgen] { padding: 12px !important; font-size: 14px !important; }
+  [data-msample-grid] > button { padding: 10px 11px !important; min-height: 80px !important; }
+  [data-msample-grid] > button > div:first-child > span:last-child { font-size: 12px !important; }
+  [data-msample-grid] > button span[style*="background:#f0f7f0"], [data-msample-grid] > button span[style*="background:var(--lavender-bg)"] { font-size: 9.5px !important; padding: 1px 6px !important; }
   /* Editorial mobile — talk content tightening */
   .app h1 { font-size: 18px !important; line-height: 1.22 !important; letter-spacing: -0.003em !important; }
   .app h2 { font-size: 14px !important; line-height: 1.3 !important; }
@@ -887,11 +1007,11 @@ function findDiagramTemplate(topic){
 var SAMPLES = [
   {
     "slug": "tma",
-    "topic": "Thrombotic Microangiopathy",
+    "topic": "TMA",
     "style": "lecture",
     "specialty": "Hematology",
     "talk": {
-      "title": "Thrombotic Microangiopathy",
+      "title": "TMA",
       "subtitle": "TTP vs HUS vs aHUS vs DIC vs HELLP",
       "guideline_sources": [
         "ASH TTP Guideline (2020)",
@@ -971,94 +1091,6 @@ var SAMPLES = [
     "guideline_sources": [
       "ASH/ISTH 2020",
       "KDIGO aHUS 2017"
-    ],
-    "generated_at": "2026-05-06"
-  },
-  {
-    "slug": "portal_htn_cirrhosis",
-    "topic": "Portal Hypertension in Cirrhosis",
-    "style": "lecture",
-    "specialty": "Gastroenterology",
-    "talk": {
-      "title": "Portal Hypertension in Cirrhosis",
-      "subtitle": "From varices to HPS and portopulmonary HTN — a mechanistic tour",
-      "guideline_sources": [
-        "AASLD Portal Hypertensive Bleeding Guideline (2021)",
-        "Baveno VII Consensus (2022)",
-        "ATS/ERS Pulmonary Vascular Complications of Liver Disease (2004; updated AASLD 2020)",
-        "AASLD Hepatopulmonary Syndrome Position Paper (2020)",
-        "AASLD Portopulmonary Hypertension Position Paper (2020)"
-      ],
-      "sections": [
-        {
-          "heading": "Mechanism of Portal HTN",
-          "minutes": "2 min",
-          "points": [
-            "Cirrhosis distorts hepatic architecture and increases intrahepatic resistance (sinusoidal fibrosis, regenerative nodules, endothelial dysfunction with reduced NO)",
-            "Splanchnic vasodilation (excess NO peripherally) and increased portal inflow worsen the gradient — defined by HVPG ≥10 mmHg as clinically significant portal HTN",
-            "Compensatory portosystemic shunts open: gastroesophageal varices, caput medusae, hemorrhoidal plexus — the classic hallmarks"
-          ],
-          "teaching_pearl": "The paradox of cirrhosis: NO is deficient in the liver (high resistance) but excessive in the splanchnic bed (vasodilation). This dual-NO derangement drives portal HTN AND its systemic complications.",
-          "board_tip": "HVPG ≥12 mmHg is the threshold for variceal bleeding. Reducing HVPG by ≥20% or below 12 reduces bleeding risk — the goal of NSBB therapy."
-        },
-        {
-          "heading": "Variceal Bleeding, Ascites, SBP, HE",
-          "minutes": "3 min",
-          "points": [
-            "Varices: nonselective β-blockers (carvedilol preferred per Baveno VII) reduce HVPG and prevent first bleed; EVL for medium/large varices intolerant of NSBB. Acute bleed: octreotide + ceftriaxone + EVL within 12h",
-            "Ascites: SAAG ≥1.1 = portal HTN; manage with sodium restriction <2g/day, spironolactone + furosemide (100:40 ratio), large-volume paracentesis with albumin (8g/L removed when >5L)",
-            "SBP: PMN ≥250/mm³ in ascites; empiric ceftriaxone 2g daily × 5 days; albumin 1.5 g/kg day 1 + 1 g/kg day 3 reduces HRS and mortality (Sort trial)",
-            "Hepatic encephalopathy: lactulose titrate to 2–3 soft stools/day; rifaximin 550 mg BID added for recurrent HE (HALT-HE)"
-          ],
-          "teaching_pearl": "TIPS is indicated for refractory variceal bleeding or refractory ascites — but worsens HE in 25–50%. Pre-procedure: MELD <18, no severe pulmonary HTN, no advanced HE.",
-          "board_tip": "Avoid NSAIDs (worsen ascites, precipitate AKI), aminoglycosides (nephrotoxicity in cirrhosis), and benzodiazepines (precipitate HE)."
-        },
-        {
-          "heading": "Hepatopulmonary Syndrome (HPS)",
-          "minutes": "3 min",
-          "points": [
-            "Triad: liver disease + intrapulmonary vascular dilation + arterial hypoxemia (A–a gradient ≥15, or ≥20 if age >64)",
-            "Pathophysiology: pulmonary microvascular DILATION (precapillary 15–500 μm). Increased pulmonary NO production and circulating vasodilators (endothelin, ET-B activation, TNF-α from gut translocation) produce diffusion-perfusion impairment — RBCs travel too quickly through dilated capillaries to fully oxygenate",
-            "Hallmark findings: platypnea (dyspnea worsens upright) and orthodeoxia (PaO2 drops ≥5% or ≥4 mmHg upright) — opposite of typical orthopnea",
-            "Diagnose with contrast-enhanced TTE (saline-shake bubble study): late shunt (≥3 cycles after RA opacification) = intrapulmonary, distinguishes from intracardiac shunts",
-            "Treatment: oxygen for PaO2 <60 mmHg; liver transplant is the only definitive cure — MELD exception points granted if PaO2 <60 mmHg"
-          ],
-          "teaching_pearl": "HPS = DILATED pulmonary vessels causing shunt-like physiology. Mechanism is opposite of PoPH (CONSTRICTED). Both are complications of portal HTN but the lung biology diverges.",
-          "board_tip": "Severe HPS (PaO2 <60) confers MELD exception status because outcomes worsen rapidly without transplant; mild-to-moderate HPS reverses post-transplant in >80%."
-        },
-        {
-          "heading": "Portopulmonary Hypertension (PoPH)",
-          "minutes": "3 min",
-          "points": [
-            "Definition: portal HTN + mPAP >20 mmHg (per 2022 ESC/ERS criteria; previously >25) + PVR >2 WU + PCWP ≤15 mmHg by RHC. Without RHC you cannot distinguish PoPH from volume overload or high-output cardiomyopathy",
-            "Pathophysiology: pulmonary arterial CONSTRICTION and remodeling. Splanchnic vasodilators (serotonin, endothelin-1, IL-6, VIP) bypass the failed liver and reach the pulmonary circulation, triggering smooth muscle proliferation, intimal fibrosis, and plexiform lesions identical to idiopathic PAH",
-            "Echo screening: TR jet velocity >2.8 m/s or estimated RVSP >40 mmHg → confirm with RHC. Screen all liver transplant candidates",
-            "Treatment: PAH-specific therapy (PDE5 inhibitors, endothelin receptor antagonists like ambrisentan/macitentan, prostacyclin analogs) can reduce PVR. Avoid β-blockers (worsen RV hemodynamics)",
-            "Liver transplant is contraindicated if mPAP ≥45 mmHg or PVR >5 WU due to prohibitive RV failure mortality. Goal: treat PoPH first, get mPAP <35 mmHg with PVR <3 WU, THEN list for transplant"
-          ],
-          "teaching_pearl": "HPS and PoPH are mirror-image complications: HPS = vasodilation (low PVR, low PaO2), PoPH = vasoconstriction (high PVR, high mPAP). They can rarely coexist — and the implications for transplant are opposite.",
-          "board_tip": "NSBBs (used for variceal prophylaxis) are contraindicated in PoPH — they reduce cardiac output and worsen RV failure. Switch to band ligation alone if PoPH is diagnosed."
-        }
-      ],
-      "summary_points": [
-        "Portal HTN drives variceal bleeding, ascites, SBP, HE, HPS, and PoPH — six manifestations from one mechanism",
-        "HPS = pulmonary vasodilation → diffusion-perfusion shunt → orthodeoxia/platypnea; treat with transplant",
-        "PoPH = pulmonary vasoconstriction/remodeling → high mPAP/PVR; treat with PAH therapy first, then transplant",
-        "Distinguish HPS vs PoPH by RHC and contrast TTE — they require opposite management strategies",
-        "Avoid β-blockers in PoPH; avoid NSAIDs and benzodiazepines in cirrhosis broadly"
-      ],
-      "visual_memory_card": {
-        "top_left": "HPS: DILATED vessels · ↓PaO2 · platypnea, orthodeoxia",
-        "top_right": "PoPH: CONSTRICTED vessels · ↑mPAP, ↑PVR",
-        "bottom_left": "HPS dx: bubble TTE (late shunt) · Tx: transplant cures",
-        "bottom_right": "PoPH dx: RHC · Tx: PAH meds, then transplant if mPAP <35",
-        "center": "Both arise from portal HTN but have OPPOSITE pulmonary vascular biology and opposite transplant implications."
-      }
-    },
-    "guideline_sources": [
-      "AASLD 2021",
-      "Baveno VII 2022",
-      "AASLD HPS/PoPH 2020"
     ],
     "generated_at": "2026-05-06"
   },
@@ -1226,6 +1258,182 @@ var SAMPLES = [
     },
     "guideline_sources": [
       "KDIGO 2021 Glomerular Diseases"
+    ],
+    "generated_at": "2026-05-06"
+  },
+  {
+    "slug": "hrs",
+    "topic": "Hepatorenal Syndrome",
+    "style": "lecture",
+    "specialty": "Nephrology",
+    "talk": {
+      "title": "Hepatorenal Syndrome",
+      "subtitle": "HRS-AKI vs HRS-NAKI: pathophysiology and terlipressin",
+      "guideline_sources": [
+        "AASLD AKI in Cirrhosis Practice Guideline (2021)",
+        "ICA Consensus Definition (2015) and Update (2019)",
+        "EASL Decompensated Cirrhosis Guideline (2018)",
+        "CONFIRM Trial — terlipressin (NEJM 2021)"
+      ],
+      "sections": [
+        {
+          "heading": "Pathophysiology",
+          "minutes": "3 min",
+          "points": [
+            "Cirrhosis → splanchnic arterial vasodilation (excess NO, prostaglandins, endocannabinoids) → ↓effective arterial blood volume → maximal RAAS, SNS, and ADH activation",
+            "Renal arteriolar vasoconstriction is the dominant lesion — afferent and efferent constriction collapses GFR while glomerular structure remains intact",
+            "Bacterial translocation from the gut and SBP drive systemic inflammation (TNF-α, IL-6) which amplifies renal vasoconstriction",
+            "Cardiomyopathy of cirrhosis (impaired contractile reserve, blunted β-adrenergic response) compounds the picture — can't compensate for splanchnic pooling"
+          ],
+          "teaching_pearl": "HRS is FUNCTIONAL renal failure — kidneys are histologically normal. A successful liver transplant fully reverses HRS in most patients within days to weeks.",
+          "board_tip": "Urinalysis is bland; FENa <1% (severe vasoconstriction); UNa <10–20 mEq/L. These are nearly indistinguishable from prerenal AKI by labs alone — clinical context is everything."
+        },
+        {
+          "heading": "Classification — HRS-AKI (Type I) vs HRS-NAKI (Type II)",
+          "minutes": "3 min",
+          "points": [
+            "ICA-2015 redefined HRS by KDIGO AKI criteria. HRS-AKI (formerly Type I): AKI by ICA-AKI criteria — ↑Cr ≥0.3 mg/dL in 48h or ≥50% from baseline within 7 days",
+            "HRS-NAKI (formerly Type II): non-acute kidney impairment — eGFR <60 for ≥3 months without other cause, OR ↑Cr ≥50% over >7 days",
+            "Type I (HRS-AKI) is rapidly progressive; median untreated survival ~2 weeks. Type II is more indolent; survival measured in months and is closely tied to refractory ascites",
+            "Diagnostic criteria (require ALL): cirrhosis with ascites, ICA-AKI or chronic kidney impairment criteria met, no improvement after 2 days of diuretic withdrawal + albumin (1 g/kg/day, max 100 g/day), no shock, no nephrotoxins, no structural kidney disease (no proteinuria >500 mg/day, no microhematuria, normal renal US)"
+          ],
+          "teaching_pearl": "The albumin challenge (1 g/kg/day × 2 days, max 100 g) is BOTH diagnostic and therapeutic — if Cr improves, the patient was prerenal/volume-responsive, not HRS.",
+          "board_tip": "ICA-2015 changed the threshold: even small Cr rises now qualify as AKI in cirrhosis. Old IAC criteria required Cr >2.5 — boards may still test the modern definition."
+        },
+        {
+          "heading": "Treatment of HRS-AKI",
+          "minutes": "3 min",
+          "points": [
+            "First step: hold all diuretics, β-blockers, NSAIDs, and nephrotoxins. Treat any precipitant (SBP, GI bleed, paracentesis-induced circulatory dysfunction)",
+            "Albumin: 1 g/kg/day (max 100 g) for 2 days, then 20–40 g/day during vasoconstrictor therapy — fills the splanchnic vascular deficit",
+            "Vasoconstrictor first-line (US): terlipressin 0.85–2 mg IV q6h (or continuous infusion 2 mg/24h titrated). CONFIRM trial demonstrated higher rate of HRS reversal than placebo. FDA-approved 2022. Watch for ischemia (mesenteric, peripheral) and respiratory failure (≥10% in CONFIRM)",
+            "If terlipressin unavailable or contraindicated: norepinephrine in ICU (start 0.5 mg/h, titrate to MAP +10), or midodrine + octreotide + albumin (less effective; outpatient bridge)",
+            "TIPS may be considered in selected HRS-AKI without contraindications (MELD <18, no severe HE, no severe pulmonary HTN) — improves portal pressure and renal perfusion",
+            "Dialysis as bridge to transplant — does not reverse HRS but maintains volume and electrolyte balance"
+          ],
+          "teaching_pearl": "HRS reversal rate with terlipressin + albumin is ~40–50% in trials; without treatment, near 0%. Even partial response (Cr decrease) buys time for transplant evaluation.",
+          "board_tip": "Pre-CONFIRM, midodrine+octreotide was standard in the US. Now terlipressin is preferred per AASLD 2021 — boards updated."
+        },
+        {
+          "heading": "HRS-NAKI & Definitive Treatment",
+          "minutes": "2 min",
+          "points": [
+            "HRS-NAKI is the renal manifestation of refractory ascites — managed with serial large-volume paracentesis + albumin, TIPS for selected patients, and listing for transplant",
+            "Vasoconstrictors are less established for HRS-NAKI than HRS-AKI; use is patient-specific",
+            "MELD-Na incorporates Cr — HRS patients climb the transplant list rapidly because of high MELD",
+            "Liver transplant is the only definitive cure. Kidney function recovers in most cases post-transplant; combined liver-kidney transplant reserved for prolonged HRS (>4–6 weeks on dialysis) or advanced underlying CKD",
+            "Prevention: albumin in SBP (1.5 g/kg day 1, 1 g/kg day 3 — Sort trial reduces HRS), avoid NSAIDs, careful paracentesis with albumin replacement (8 g/L removed >5L)"
+          ],
+          "teaching_pearl": "MELD exception was historically given for HPS but not directly for HRS — HRS patients earn priority via the Cr component of MELD itself.",
+          "board_tip": "If a patient has been on dialysis for 8 weeks with HRS, transplant team should consider simultaneous liver-kidney rather than liver-alone (UNOS criteria)."
+        }
+      ],
+      "summary_points": [
+        "HRS = functional, vasoconstrictive renal failure of advanced cirrhosis — kidneys histologically intact",
+        "ICA-2015: HRS-AKI (Type I, rapid; ↑Cr ≥0.3 in 48h or ≥50% in 7d) vs HRS-NAKI (Type II, indolent eGFR <60)",
+        "Diagnose by exclusion + 2-day albumin/diuretic challenge",
+        "Treatment: hold offenders, albumin + terlipressin (CONFIRM trial, FDA 2022). NE if no terlipressin",
+        "Liver transplant is curative; bridge with dialysis. Prevent with albumin in SBP and post-paracentesis"
+      ],
+      "visual_memory_card": {
+        "top_left": "HRS-AKI: ↑Cr ≥0.3 in 48h or ≥50% in 7d (Type I)",
+        "top_right": "HRS-NAKI: eGFR <60 for ≥3 mo (Type II)",
+        "bottom_left": "Tx: albumin + terlipressin (CONFIRM)",
+        "bottom_right": "Cure: liver transplant (HRS reverses)",
+        "center": "HRS = functional renal failure. Kidneys are normal histologically. Always exclude prerenal first with albumin challenge."
+      }
+    },
+    "guideline_sources": [
+      "AASLD 2021 AKI in Cirrhosis",
+      "ICA-2015"
+    ],
+    "generated_at": "2026-05-06"
+  },
+  {
+    "slug": "portal_htn_cirrhosis",
+    "topic": "Portal Hypertension in Cirrhosis",
+    "style": "lecture",
+    "specialty": "Gastroenterology",
+    "talk": {
+      "title": "Portal Hypertension in Cirrhosis",
+      "subtitle": "From varices to HPS and portopulmonary HTN — a mechanistic tour",
+      "guideline_sources": [
+        "AASLD Portal Hypertensive Bleeding Guideline (2021)",
+        "Baveno VII Consensus (2022)",
+        "ATS/ERS Pulmonary Vascular Complications of Liver Disease (2004; updated AASLD 2020)",
+        "AASLD Hepatopulmonary Syndrome Position Paper (2020)",
+        "AASLD Portopulmonary Hypertension Position Paper (2020)"
+      ],
+      "sections": [
+        {
+          "heading": "Mechanism of Portal HTN",
+          "minutes": "2 min",
+          "points": [
+            "Cirrhosis distorts hepatic architecture and increases intrahepatic resistance (sinusoidal fibrosis, regenerative nodules, endothelial dysfunction with reduced NO)",
+            "Splanchnic vasodilation (excess NO peripherally) and increased portal inflow worsen the gradient — defined by HVPG ≥10 mmHg as clinically significant portal HTN",
+            "Compensatory portosystemic shunts open: gastroesophageal varices, caput medusae, hemorrhoidal plexus — the classic hallmarks"
+          ],
+          "teaching_pearl": "The paradox of cirrhosis: NO is deficient in the liver (high resistance) but excessive in the splanchnic bed (vasodilation). This dual-NO derangement drives portal HTN AND its systemic complications.",
+          "board_tip": "HVPG ≥12 mmHg is the threshold for variceal bleeding. Reducing HVPG by ≥20% or below 12 reduces bleeding risk — the goal of NSBB therapy."
+        },
+        {
+          "heading": "Variceal Bleeding, Ascites, SBP, HE",
+          "minutes": "3 min",
+          "points": [
+            "Varices: nonselective β-blockers (carvedilol preferred per Baveno VII) reduce HVPG and prevent first bleed; EVL for medium/large varices intolerant of NSBB. Acute bleed: octreotide + ceftriaxone + EVL within 12h",
+            "Ascites: SAAG ≥1.1 = portal HTN; manage with sodium restriction <2g/day, spironolactone + furosemide (100:40 ratio), large-volume paracentesis with albumin (8g/L removed when >5L)",
+            "SBP: PMN ≥250/mm³ in ascites; empiric ceftriaxone 2g daily × 5 days; albumin 1.5 g/kg day 1 + 1 g/kg day 3 reduces HRS and mortality (Sort trial)",
+            "Hepatic encephalopathy: lactulose titrate to 2–3 soft stools/day; rifaximin 550 mg BID added for recurrent HE (HALT-HE)"
+          ],
+          "teaching_pearl": "TIPS is indicated for refractory variceal bleeding or refractory ascites — but worsens HE in 25–50%. Pre-procedure: MELD <18, no severe pulmonary HTN, no advanced HE.",
+          "board_tip": "Avoid NSAIDs (worsen ascites, precipitate AKI), aminoglycosides (nephrotoxicity in cirrhosis), and benzodiazepines (precipitate HE)."
+        },
+        {
+          "heading": "Hepatopulmonary Syndrome (HPS)",
+          "minutes": "3 min",
+          "points": [
+            "Triad: liver disease + intrapulmonary vascular dilation + arterial hypoxemia (A–a gradient ≥15, or ≥20 if age >64)",
+            "Pathophysiology: pulmonary microvascular DILATION (precapillary 15–500 μm). Increased pulmonary NO production and circulating vasodilators (endothelin, ET-B activation, TNF-α from gut translocation) produce diffusion-perfusion impairment — RBCs travel too quickly through dilated capillaries to fully oxygenate",
+            "Hallmark findings: platypnea (dyspnea worsens upright) and orthodeoxia (PaO2 drops ≥5% or ≥4 mmHg upright) — opposite of typical orthopnea",
+            "Diagnose with contrast-enhanced TTE (saline-shake bubble study): late shunt (≥3 cycles after RA opacification) = intrapulmonary, distinguishes from intracardiac shunts",
+            "Treatment: oxygen for PaO2 <60 mmHg; liver transplant is the only definitive cure — MELD exception points granted if PaO2 <60 mmHg"
+          ],
+          "teaching_pearl": "HPS = DILATED pulmonary vessels causing shunt-like physiology. Mechanism is opposite of PoPH (CONSTRICTED). Both are complications of portal HTN but the lung biology diverges.",
+          "board_tip": "Severe HPS (PaO2 <60) confers MELD exception status because outcomes worsen rapidly without transplant; mild-to-moderate HPS reverses post-transplant in >80%."
+        },
+        {
+          "heading": "Portopulmonary Hypertension (PoPH)",
+          "minutes": "3 min",
+          "points": [
+            "Definition: portal HTN + mPAP >20 mmHg (per 2022 ESC/ERS criteria; previously >25) + PVR >2 WU + PCWP ≤15 mmHg by RHC. Without RHC you cannot distinguish PoPH from volume overload or high-output cardiomyopathy",
+            "Pathophysiology: pulmonary arterial CONSTRICTION and remodeling. Splanchnic vasodilators (serotonin, endothelin-1, IL-6, VIP) bypass the failed liver and reach the pulmonary circulation, triggering smooth muscle proliferation, intimal fibrosis, and plexiform lesions identical to idiopathic PAH",
+            "Echo screening: TR jet velocity >2.8 m/s or estimated RVSP >40 mmHg → confirm with RHC. Screen all liver transplant candidates",
+            "Treatment: PAH-specific therapy (PDE5 inhibitors, endothelin receptor antagonists like ambrisentan/macitentan, prostacyclin analogs) can reduce PVR. Avoid β-blockers (worsen RV hemodynamics)",
+            "Liver transplant is contraindicated if mPAP ≥45 mmHg or PVR >5 WU due to prohibitive RV failure mortality. Goal: treat PoPH first, get mPAP <35 mmHg with PVR <3 WU, THEN list for transplant"
+          ],
+          "teaching_pearl": "HPS and PoPH are mirror-image complications: HPS = vasodilation (low PVR, low PaO2), PoPH = vasoconstriction (high PVR, high mPAP). They can rarely coexist — and the implications for transplant are opposite.",
+          "board_tip": "NSBBs (used for variceal prophylaxis) are contraindicated in PoPH — they reduce cardiac output and worsen RV failure. Switch to band ligation alone if PoPH is diagnosed."
+        }
+      ],
+      "summary_points": [
+        "Portal HTN drives variceal bleeding, ascites, SBP, HE, HPS, and PoPH — six manifestations from one mechanism",
+        "HPS = pulmonary vasodilation → diffusion-perfusion shunt → orthodeoxia/platypnea; treat with transplant",
+        "PoPH = pulmonary vasoconstriction/remodeling → high mPAP/PVR; treat with PAH therapy first, then transplant",
+        "Distinguish HPS vs PoPH by RHC and contrast TTE — they require opposite management strategies",
+        "Avoid β-blockers in PoPH; avoid NSAIDs and benzodiazepines in cirrhosis broadly"
+      ],
+      "visual_memory_card": {
+        "top_left": "HPS: DILATED vessels · ↓PaO2 · platypnea, orthodeoxia",
+        "top_right": "PoPH: CONSTRICTED vessels · ↑mPAP, ↑PVR",
+        "bottom_left": "HPS dx: bubble TTE (late shunt) · Tx: transplant cures",
+        "bottom_right": "PoPH dx: RHC · Tx: PAH meds, then transplant if mPAP <35",
+        "center": "Both arise from portal HTN but have OPPOSITE pulmonary vascular biology and opposite transplant implications."
+      }
+    },
+    "guideline_sources": [
+      "AASLD 2021",
+      "Baveno VII 2022",
+      "AASLD HPS/PoPH 2020"
     ],
     "generated_at": "2026-05-06"
   },
@@ -1640,94 +1848,6 @@ var SAMPLES = [
     "generated_at": "2026-05-06"
   },
   {
-    "slug": "hrs",
-    "topic": "Hepatorenal Syndrome",
-    "style": "lecture",
-    "specialty": "Nephrology",
-    "talk": {
-      "title": "Hepatorenal Syndrome",
-      "subtitle": "HRS-AKI vs HRS-NAKI: pathophysiology and terlipressin",
-      "guideline_sources": [
-        "AASLD AKI in Cirrhosis Practice Guideline (2021)",
-        "ICA Consensus Definition (2015) and Update (2019)",
-        "EASL Decompensated Cirrhosis Guideline (2018)",
-        "CONFIRM Trial — terlipressin (NEJM 2021)"
-      ],
-      "sections": [
-        {
-          "heading": "Pathophysiology",
-          "minutes": "3 min",
-          "points": [
-            "Cirrhosis → splanchnic arterial vasodilation (excess NO, prostaglandins, endocannabinoids) → ↓effective arterial blood volume → maximal RAAS, SNS, and ADH activation",
-            "Renal arteriolar vasoconstriction is the dominant lesion — afferent and efferent constriction collapses GFR while glomerular structure remains intact",
-            "Bacterial translocation from the gut and SBP drive systemic inflammation (TNF-α, IL-6) which amplifies renal vasoconstriction",
-            "Cardiomyopathy of cirrhosis (impaired contractile reserve, blunted β-adrenergic response) compounds the picture — can't compensate for splanchnic pooling"
-          ],
-          "teaching_pearl": "HRS is FUNCTIONAL renal failure — kidneys are histologically normal. A successful liver transplant fully reverses HRS in most patients within days to weeks.",
-          "board_tip": "Urinalysis is bland; FENa <1% (severe vasoconstriction); UNa <10–20 mEq/L. These are nearly indistinguishable from prerenal AKI by labs alone — clinical context is everything."
-        },
-        {
-          "heading": "Classification — HRS-AKI (Type I) vs HRS-NAKI (Type II)",
-          "minutes": "3 min",
-          "points": [
-            "ICA-2015 redefined HRS by KDIGO AKI criteria. HRS-AKI (formerly Type I): AKI by ICA-AKI criteria — ↑Cr ≥0.3 mg/dL in 48h or ≥50% from baseline within 7 days",
-            "HRS-NAKI (formerly Type II): non-acute kidney impairment — eGFR <60 for ≥3 months without other cause, OR ↑Cr ≥50% over >7 days",
-            "Type I (HRS-AKI) is rapidly progressive; median untreated survival ~2 weeks. Type II is more indolent; survival measured in months and is closely tied to refractory ascites",
-            "Diagnostic criteria (require ALL): cirrhosis with ascites, ICA-AKI or chronic kidney impairment criteria met, no improvement after 2 days of diuretic withdrawal + albumin (1 g/kg/day, max 100 g/day), no shock, no nephrotoxins, no structural kidney disease (no proteinuria >500 mg/day, no microhematuria, normal renal US)"
-          ],
-          "teaching_pearl": "The albumin challenge (1 g/kg/day × 2 days, max 100 g) is BOTH diagnostic and therapeutic — if Cr improves, the patient was prerenal/volume-responsive, not HRS.",
-          "board_tip": "ICA-2015 changed the threshold: even small Cr rises now qualify as AKI in cirrhosis. Old IAC criteria required Cr >2.5 — boards may still test the modern definition."
-        },
-        {
-          "heading": "Treatment of HRS-AKI",
-          "minutes": "3 min",
-          "points": [
-            "First step: hold all diuretics, β-blockers, NSAIDs, and nephrotoxins. Treat any precipitant (SBP, GI bleed, paracentesis-induced circulatory dysfunction)",
-            "Albumin: 1 g/kg/day (max 100 g) for 2 days, then 20–40 g/day during vasoconstrictor therapy — fills the splanchnic vascular deficit",
-            "Vasoconstrictor first-line (US): terlipressin 0.85–2 mg IV q6h (or continuous infusion 2 mg/24h titrated). CONFIRM trial demonstrated higher rate of HRS reversal than placebo. FDA-approved 2022. Watch for ischemia (mesenteric, peripheral) and respiratory failure (≥10% in CONFIRM)",
-            "If terlipressin unavailable or contraindicated: norepinephrine in ICU (start 0.5 mg/h, titrate to MAP +10), or midodrine + octreotide + albumin (less effective; outpatient bridge)",
-            "TIPS may be considered in selected HRS-AKI without contraindications (MELD <18, no severe HE, no severe pulmonary HTN) — improves portal pressure and renal perfusion",
-            "Dialysis as bridge to transplant — does not reverse HRS but maintains volume and electrolyte balance"
-          ],
-          "teaching_pearl": "HRS reversal rate with terlipressin + albumin is ~40–50% in trials; without treatment, near 0%. Even partial response (Cr decrease) buys time for transplant evaluation.",
-          "board_tip": "Pre-CONFIRM, midodrine+octreotide was standard in the US. Now terlipressin is preferred per AASLD 2021 — boards updated."
-        },
-        {
-          "heading": "HRS-NAKI & Definitive Treatment",
-          "minutes": "2 min",
-          "points": [
-            "HRS-NAKI is the renal manifestation of refractory ascites — managed with serial large-volume paracentesis + albumin, TIPS for selected patients, and listing for transplant",
-            "Vasoconstrictors are less established for HRS-NAKI than HRS-AKI; use is patient-specific",
-            "MELD-Na incorporates Cr — HRS patients climb the transplant list rapidly because of high MELD",
-            "Liver transplant is the only definitive cure. Kidney function recovers in most cases post-transplant; combined liver-kidney transplant reserved for prolonged HRS (>4–6 weeks on dialysis) or advanced underlying CKD",
-            "Prevention: albumin in SBP (1.5 g/kg day 1, 1 g/kg day 3 — Sort trial reduces HRS), avoid NSAIDs, careful paracentesis with albumin replacement (8 g/L removed >5L)"
-          ],
-          "teaching_pearl": "MELD exception was historically given for HPS but not directly for HRS — HRS patients earn priority via the Cr component of MELD itself.",
-          "board_tip": "If a patient has been on dialysis for 8 weeks with HRS, transplant team should consider simultaneous liver-kidney rather than liver-alone (UNOS criteria)."
-        }
-      ],
-      "summary_points": [
-        "HRS = functional, vasoconstrictive renal failure of advanced cirrhosis — kidneys histologically intact",
-        "ICA-2015: HRS-AKI (Type I, rapid; ↑Cr ≥0.3 in 48h or ≥50% in 7d) vs HRS-NAKI (Type II, indolent eGFR <60)",
-        "Diagnose by exclusion + 2-day albumin/diuretic challenge",
-        "Treatment: hold offenders, albumin + terlipressin (CONFIRM trial, FDA 2022). NE if no terlipressin",
-        "Liver transplant is curative; bridge with dialysis. Prevent with albumin in SBP and post-paracentesis"
-      ],
-      "visual_memory_card": {
-        "top_left": "HRS-AKI: ↑Cr ≥0.3 in 48h or ≥50% in 7d (Type I)",
-        "top_right": "HRS-NAKI: eGFR <60 for ≥3 mo (Type II)",
-        "bottom_left": "Tx: albumin + terlipressin (CONFIRM)",
-        "bottom_right": "Cure: liver transplant (HRS reverses)",
-        "center": "HRS = functional renal failure. Kidneys are normal histologically. Always exclude prerenal first with albumin challenge."
-      }
-    },
-    "guideline_sources": [
-      "AASLD 2021 AKI in Cirrhosis",
-      "ICA-2015"
-    ],
-    "generated_at": "2026-05-06"
-  },
-  {
     "slug": "afib_boards",
     "topic": "Atrial Fibrillation",
     "style": "boards",
@@ -1822,7 +1942,7 @@ var SAMPLES = [
 ]; // __SAMPLES_MARKER__
 
 // ═══════════ STATE ═══════════
-var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, wantWebSearch:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false, showSaved:false, savedSearch:"", savedFlash:"", showExamples:false, isSampleTalk:false, sampleSlug:"", useByok:!(PROXY_CONFIG.enabled&&PROXY_CONFIG.url), rateRemaining:null, depth:"concise", sharedTalk:false, vmcOpen:false };
+var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, wantWebSearch:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false, showSaved:false, savedSearch:"", savedFlash:"", showExamples:false, isSampleTalk:false, sampleSlug:"", useByok:!(PROXY_CONFIG.enabled&&PROXY_CONFIG.url), rateRemaining:null, depth:"concise", sharedTalk:false, vmcOpen:false, tab:"overview", activeSection:0, gldOpen:false, lightbox:false, refineContext:"", editSettings:false, overflowOpen:false, reviseIn:"" };
 
 // ═══════════ SAVED LIBRARY (localStorage) ═══════════
 function loadSavedTalks(){try{return JSON.parse(localStorage.getItem("ct_saved_talks")||"[]")}catch(e){return[]}}
@@ -2240,7 +2360,8 @@ async function generate(){
     var depthHint = S.depth === 'concise'
       ? '\n\nDEPTH: CONCISE (~5-min summary). Keep this TIGHT. Same overall structure, but cut depth ~50%.\n- Each section: 3-4 BRIEF bullets (<=15 words each), not 5-7 long ones\n- Subtitle: <=10 words\n- Teaching pearl: 1 sentence, <=20 words\n- Board tip: 1 sentence, <=15 words\n- Visual memory card quadrants: <=8 words each, center: <=6 words\n- Summary points: <=20 words each, max 4 points\n- For boards style: vignette <=80 words, explanation 3-5 sentences, wrong explanations 1 sentence each, 3-4 board pearls (not 5), 3 teaching points <=20 words each.\nNO redundancy. No flowery language. Every word earns its place. Aim for clarity, not comprehensiveness.'
       : '\n\nDEPTH: DETAILED (full 10-min talk). Go deep. 5-7 substantive bullets per section exploring mechanism, evidence, clinical application. Teaching pearls and board tips can be 1-2 sentences with nuance. Aim for the full 10-min chalk talk experience.';
-    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + guidelineContext + depthHint + searchHint + '\nONLY JSON. Plain text values, no XML tags, no citation markup.'}];
+    var refineHint = (S.refineContext && S.refineContext.trim()) ? "\n\nUSER CONTEXT/REFINEMENT: " + S.refineContext.trim() : "";
+    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + refineHint + guidelineContext + depthHint + searchHint + '\nONLY JSON. Plain text values, no XML tags, no citation markup.'}];
     var sys=S.style==="boards"?BOARDS_PROMPT:LECTURE_PROMPT;
 
     // Step 1: Main generation with model fallback chain (Opus -> Sonnet -> Haiku)
@@ -2507,27 +2628,43 @@ function loadFromShareHash(){
 
 async function downloadVMC(){
   if(!S.talk)return;
+  // Auto-expand VMC if collapsed, then wait one frame for render
+  if(!S.vmcOpen){S.vmcOpen=true;render();await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})})}
   var vmc=document.getElementById("vmcCard");
-  if(!vmc){alert("VMC not found");return}
-  if(typeof html2canvas==="undefined"){alert("Image library still loading. Please wait a moment and try again.");return}
+  if(!vmc){S.savedFlash="VMC card not on page yet \u2014 try again.";render();setTimeout(function(){S.savedFlash="";render()},3000);return}
+  if(typeof html2canvas==="undefined"){S.savedFlash="Image library still loading. Try again in a moment.";render();setTimeout(function(){S.savedFlash="";render()},3000);return}
   S.savedFlash="\u{1F4F8} Generating image...";render();
+  var slug=(S.talk.title||"chalk-talk").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60);
+  function triggerDownload(href,revoke){
+    var a=document.createElement("a");
+    a.href=href;
+    a.download="vmc-"+slug+".png";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    if(revoke)setTimeout(function(){URL.revokeObjectURL(href)},5000);
+    S.savedFlash="\u2713 Image downloaded! Great for Twitter or slides.";render();
+    setTimeout(function(){S.savedFlash="";render()},3500);
+  }
   try{
-    var canvas=await html2canvas(vmc,{scale:2,backgroundColor:null,useCORS:true,logging:false});
-    canvas.toBlob(function(blob){
-      var url=URL.createObjectURL(blob);
-      var a=document.createElement("a");
-      var slug=(S.talk.title||"chalk-talk").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60);
-      a.href=url;
-      a.download="vmc-"+slug+".png";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      S.savedFlash="\u2713 Image downloaded! Great for Twitter or slides.";render();
-      setTimeout(function(){S.savedFlash="";render()},3500);
-    },"image/png");
+    var canvas=await html2canvas(vmc,{scale:2,backgroundColor:"#330662",useCORS:true,logging:false,allowTaint:true});
+    if(canvas.toBlob){
+      canvas.toBlob(function(blob){
+        if(!blob){
+          // toBlob returned null (some Safari builds) \u2014 fall back to data URL
+          try{triggerDownload(canvas.toDataURL("image/png"),false)}
+          catch(e2){S.savedFlash="Image generation failed: "+e2.message;render();setTimeout(function(){S.savedFlash="";render()},4500)}
+        }else{
+          triggerDownload(URL.createObjectURL(blob),true);
+        }
+      },"image/png");
+    }else{
+      // toBlob unsupported \u2014 straight to data URL
+      triggerDownload(canvas.toDataURL("image/png"),false);
+    }
   }catch(e){
-    S.savedFlash="Couldn't generate image: "+e.message;render();
+    console.error("downloadVMC error",e);
+    S.savedFlash="Couldn't generate image: "+(e.message||"unknown error");render();
     setTimeout(function(){S.savedFlash="";render()},4500);
   }
 }
@@ -2743,239 +2880,355 @@ function renderMain(){
   var h='';
   // Header
   var savedCount=loadSavedTalks().length;
-  // Hero strip — slim editorial band: wordmark + tagline left, actions right
-  h+='<div class="hero-card" style="margin-bottom:14px">';
-  h+='<div class="hero-copy">';
+  // === Hero card: title + inline byline + metadata row ===
+  h+='<div class="hero-card">';
+  h+='<div class="hero-row">';
   h+='<h1 class="hero-title">Chalk Talk</h1>';
-  h+='<p class="hero-byline">by <a href="https://www.linkedin.com/in/tangjennii/" target="_blank" style="color:#702b9d;text-decoration:none;border-bottom:1px solid rgba(112,43,157,0.25)">Jennifer Tang, MD</a></p>';
+  h+='<p class="hero-byline">by <a href="https://www.linkedin.com/in/tangjennii/" target="_blank">Jennifer Tang, MD</a></p>';
   h+='</div>';
-  h+='<div class="hero-actions">';
-  h+='<div class="hero-buttons">';
-  h+='<button id="examplesBtn" style="background:#fafafd;border:1px solid #e2dfe8;border-radius:7px;padding:5px 10px;color:#4a4660;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s ease">📖 Examples'+((typeof SAMPLES!=="undefined"&&SAMPLES&&SAMPLES.length)?' <span style="background:#eee6f3;color:#702b9d;border-radius:8px;padding:1px 5px;font-size:9.5px;margin-left:3px;font-weight:700">'+SAMPLES.length+'</span>':'')+'</button>';
-  h+='<button id="myLibBtn" style="background:#fafafd;border:1px solid #e2dfe8;border-radius:7px;padding:5px 10px;color:#4a4660;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s ease">📚 Library'+(savedCount>0?' <span style="background:#eee6f3;color:#702b9d;border-radius:8px;padding:1px 5px;font-size:9.5px;margin-left:3px;font-weight:700">'+savedCount+'</span>':'')+'</button>';
+  // Metadata row — Examples | Library | key state
+  h+='<div class="hero-meta">';
+  h+='<button id="examplesBtn"><span style="opacity:.7">▣</span> '+((typeof SAMPLES!=="undefined"&&SAMPLES&&SAMPLES.length)?SAMPLES.length+' Examples':'Examples')+'</button>';
+  h+='<span class="divider"></span>';
+  h+='<button id="myLibBtn"><span style="opacity:.7">📖</span> Library'+(savedCount>0?' <span style="color:var(--ink-muted);font-size:11px">('+savedCount+')</span>':'')+'</button>';
+  h+='<span class="divider"></span>';
+  h+=((PROXY_CONFIG.enabled&&PROXY_CONFIG.url&&!S.useByok)?'<span style="color:#2d6a2d"><span style="opacity:.85">●</span> Demo'+(S.rateRemaining!==null?' · '+S.rateRemaining+' left':'')+'</span><button id="modeToggleBtn" class="meta-link">my key</button>':'<span style="color:'+(localStorage.getItem("claude_api_key")?"#2d6a2d":"#c0392b")+'"><span style="opacity:.85">'+(localStorage.getItem("claude_api_key")?"✓":"⚠")+'</span> '+(localStorage.getItem("claude_api_key")?"key":"no key")+'</span><button id="resetClaudeKey" class="meta-link">'+(localStorage.getItem("claude_api_key")?"change":"set")+'</button>'+((PROXY_CONFIG.enabled&&PROXY_CONFIG.url)?'<button id="modeToggleBtn" class="meta-link">demo</button>':''));
   h+='</div>';
-  h+='<div class="hero-status">';
-  h+=((PROXY_CONFIG.enabled&&PROXY_CONFIG.url&&!S.useByok)?'<span style="color:#2d6a2d;font-weight:500">● Demo'+(S.rateRemaining!==null?' · '+S.rateRemaining+' left':'')+'</span><button id="modeToggleBtn" style="background:none;border:none;color:#702b9d;font-size:10px;text-decoration:underline;cursor:pointer;padding:0">my key</button>':'<span style="color:'+(localStorage.getItem("claude_api_key")?"#2d6a2d":"#c0392b")+';font-weight:500">'+(localStorage.getItem("claude_api_key")?"✓ key":"⚠ no key")+'</span><button id="resetClaudeKey" style="background:none;border:none;color:#702b9d;font-size:10px;text-decoration:underline;cursor:pointer;padding:0">'+(localStorage.getItem("claude_api_key")?"change":"set")+'</button>'+((PROXY_CONFIG.enabled&&PROXY_CONFIG.url)?'<button id="modeToggleBtn" style="background:none;border:none;color:#702b9d;font-size:10px;text-decoration:underline;cursor:pointer;padding:0">demo</button>':''));
   h+='</div>';
+
+  // === Intro: timer line + criteria line ===
+  h+='<div style="text-align:center;margin:0 0 18px;padding:0 4px">';
+  h+='<p style="font-size:14px;color:var(--ink);margin:0;line-height:1.3;font-weight:500;display:inline-flex;align-items:center;gap:6px;justify-content:center"><span style="color:var(--plum);font-size:15px">⏱</span> 10-minute evidence-based teaching</p>';
+  h+='<p style="font-size:11.5px;color:var(--ink-muted);margin:5px 0 0;line-height:1.45;letter-spacing:0.005em">ABIM aligned · Peer-reviewed · Society guidelines</p>';
   h+='</div>';
-  h+='</div>';
-  // Tagline below hero — compact, max 2 lines
-  h+='<div style="text-align:center;margin:6px 0 14px;padding:0 8px"><p style="font-size:11.5px;color:#4a4660;margin:0;line-height:1.4;font-family:Georgia,\\"Times New Roman\\",serif;font-style:italic">10-minute teaching tool</p><p style="font-size:10.5px;color:#9490a6;margin:3px 0 0;line-height:1.45;letter-spacing:0.01em">Grounded in current society guidelines · Aligned with the ABIM blueprint · Peer-reviewed before display</p></div>';
-  // Landing-page Examples gallery — only when no talk loaded and samples exist
+
+  // === Sample cards — 2 side-by-side, icon circle + title + pills ===
   if(!S.talk&&!S.loading&&typeof SAMPLES!=="undefined"&&SAMPLES&&SAMPLES.length>0){
-    h+='<div style="margin-bottom:20px;animation:fadeIn .5s ease-out">';
-    h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding:0 4px"><span style="font-size:10px;font-weight:700;color:#9490a6;text-transform:uppercase;letter-spacing:0.09em">\u2728 Try a sample</span><button id="landingMoreBtn" style="background:none;border:none;color:#702b9d;font-size:11px;font-weight:600;cursor:pointer;padding:2px 4px;letter-spacing:0.005em">See all '+SAMPLES.length+' \u2192</button></div>';
-    h+='<div data-msample-grid style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">';
+    h+='<div style="margin-bottom:18px;animation:fadeIn .5s ease-out">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding:0 2px"><span style="font-size:13px;font-weight:600;color:var(--ink);letter-spacing:-0.005em"><span style="color:#e8a91f;margin-right:3px">✨</span> Try a sample</span><button id="landingMoreBtn" style="background:none;border:none;color:var(--plum);font-size:12px;font-weight:600;cursor:pointer;padding:2px 4px">See all '+SAMPLES.length+' →</button></div>';
+    h+='<div data-msample-grid style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">';
+    var SPEC_ICON={"Hematology":"🩸","Gastroenterology":"🍃","Cardiovascular":"♥","Nephrology":"💧","Pulmonary":"🫁","Rheumatology":"✦","Endocrinology":"⚪","Infectious Disease":"⚕","Neurology":"⚡"};
     var n=Math.min(SAMPLES.length,4);
     for(var li=0;li<n;li++){
       var ls=SAMPLES[li];
       var lt=ls.talk||{};
       var lisBQ=!!(lt.question);
-      h+='<button class="landingSampleBtn" data-slug="'+esc(ls.slug)+'" onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 3px 8px rgba(112,43,157,0.10)\';this.style.borderColor=\'#c4a3da\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 1px 2px rgba(45,42,62,0.03)\';this.style.borderColor=\'#e2dfe8\'" style="background:#fff;border:1px solid #e2dfe8;border-left:2px solid '+(lisBQ?"#e67e22":"#702b9d")+';border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;transition:all .18s ease;display:flex;flex-direction:column;gap:5px;min-height:64px;box-shadow:0 1px 2px rgba(45,42,62,0.03);min-width:0">';
-      h+='<span style="font-size:11.5px;font-weight:600;color:#330662;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;letter-spacing:-0.005em">'+esc(lt.title||ls.topic||"")+'</span>';
-      h+='<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:auto">';
-      if(ls.specialty)h+='<span style="background:#f0f7f0;color:#2d6a2d;border:1px solid #c8e0c8;padding:0 6px;border-radius:6px;font-weight:600;font-size:8.5px;letter-spacing:0.01em;line-height:1.5">'+esc(ls.specialty)+'</span>';
-      h+='<span style="font-size:9px;color:#9490a6;font-weight:500;letter-spacing:0.02em">'+(lisBQ?"Boards":"Lecture")+'</span>';
+      var ico=SPEC_ICON[ls.specialty]||"●";
+      h+='<button class="landingSampleBtn" data-slug="'+esc(ls.slug)+'" style="background:var(--cream);border:1px solid var(--line);border-left:2px solid '+(lisBQ?"#e67e22":"var(--plum)")+';border-radius:10px;padding:8px 9px;text-align:left;cursor:pointer;transition:all .18s ease;display:flex;flex-direction:column;gap:5px;min-height:64px;box-shadow:var(--shadow-soft);min-width:0">';
+      h+='<div style="display:flex;align-items:flex-start;gap:6px;min-width:0"><span style="background:var(--lavender-soft);color:var(--plum);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">'+ico+'</span>';
+      h+='<span style="font-size:11px;font-weight:600;color:var(--ink);line-height:1.22;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;letter-spacing:-0.005em;flex:1;min-width:0">'+esc(lt.title||ls.topic||"")+'</span></div>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-top:auto">';
+      if(ls.specialty)h+='<span style="background:#f0f7f0;color:#2d6a2d;border:1px solid #c8e0c8;padding:0 5px;border-radius:5px;font-weight:600;font-size:8.5px;letter-spacing:0.01em;line-height:1.55">'+esc(ls.specialty)+'</span>';
+      h+='<span style="background:var(--lavender-bg);color:var(--ink-muted);padding:0 5px;border-radius:5px;font-weight:500;font-size:8.5px;line-height:1.55">'+(lisBQ?"Boards":"Lecture")+'</span>';
       h+='</div>';
       h+='</button>';
     }
     h+='</div></div>';
   }
-  // Topic
-  h+='<div data-mtopic style="background:#fff;border:1px solid #e2dfe8;border-radius:14px;padding:18px 20px;margin-bottom:18px;box-shadow:0 1px 2px rgba(45,42,62,0.03)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px"><span style="font-size:10px;font-weight:700;color:#9490a6;text-transform:uppercase;letter-spacing:0.09em">Topic</span><button id="browseBtn" style="background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:5px 12px;color:#702b9d;font-size:11.5px;font-weight:600;cursor:pointer;transition:all .15s ease">Browse ABIM topics \u2192</button></div><textarea id="topicTA" rows="2" placeholder="e.g. Atrial fibrillation: rate vs rhythm control" style="width:100%;background:#fafafd;border:1px solid #d0cce0;border-radius:9px;padding:11px 14px;font-size:14.5px;color:#2d2a3e;resize:vertical;outline:none;line-height:1.5;transition:border-color .15s ease" onfocus="this.style.borderColor=\'#702b9d\';this.style.background=\'#fff\'" onblur="this.style.borderColor=\'#d0cce0\';this.style.background=\'#fafafd\'">'+esc(S.topic)+'</textarea></div>';
-  // Chatbot (only shown after a talk is generated)
-  if(S.talk){
-  h+='<div style="background:#fff;border:1px solid #d0cce0;border-radius:14px;margin-bottom:20px;overflow:hidden">';
-  if(S.msgs.length>0){h+='<div id="chatScroll" style="max-height:220px;overflow-y:auto;padding:14px;border-bottom:1px solid #eee6f3">';for(var mi=0;mi<S.msgs.length;mi++){var m=S.msgs[mi];h+='<div style="margin-bottom:8px;display:flex;justify-content:'+(m.r==="u"?"flex-end":"flex-start")+'"><div style="background:'+(m.r==="u"?"#330662":"#eee6f3")+';color:'+(m.r==="u"?"#fff":"#330662")+';border-radius:12px;padding:8px 14px;font-size:13px;max-width:85%;line-height:1.5">'+esc(m.t)+'</div></div>'}if(S.chatBusy)h+='<div style="display:flex"><div style="background:#eee6f3;color:#702b9d;border-radius:12px;padding:8px 14px;font-size:13px;font-style:italic">Working...</div></div>';h+='</div>'}
-  h+='<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f8f7fa"><span style="font-size:20px;flex-shrink:0">\uD83D\uDCAC</span><input id="chatInput" value="'+esc(S.chatIn)+'" placeholder="After generating, refine here \u2014 e.g. &quot;Incorporate the latest relevant studies from NEJM&quot;" style="flex:1;background:#fff;border:1.5px solid #d0cce0;border-radius:8px;padding:10px 14px;font-size:14px;color:#2d2a3e;outline:none"><button id="chatSend" style="background:'+(S.chatBusy||!S.chatIn.trim()?"#c9c3d6":"linear-gradient(135deg,#702b9d,#330662)")+';border:none;border-radius:8px;width:42px;height:42px;color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:'+(S.chatBusy||!S.chatIn.trim()?"not-allowed":"pointer")+';box-shadow:'+(S.chatBusy||!S.chatIn.trim()?"none":"0 2px 10px rgba(112,43,157,0.45)")+';transition:all .15s">\u2192</button></div></div>';
-  }
-  // Compact segmented controls: Style + Depth (equal widths, parallel structure)
-  h+='<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:18px;padding:0 2px">';
+
+  // === COMPOSE STATE: only when no talk loaded ===
+  if(!S.talk){
+  // Topic — single-line input
+  h+='<div data-mtopic style="margin-bottom:10px">';
+  h+='<div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin:0 0 6px 4px">Topic</div>';
+  h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:6px 6px 6px 14px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-soft)">';
+  h+='<span style="color:var(--ink-soft);font-size:14px;flex-shrink:0">🔍</span>';
+  h+='<input id="topicTA" type="text" value="'+esc(S.topic)+'" placeholder="Enter a topic…" style="flex:1;min-width:0;background:transparent;border:none;padding:8px 0;font-size:14px;color:var(--ink);outline:none;font-family:inherit">';
+  h+='<button id="browseBtn" style="background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:6px 12px;color:var(--plum);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">Browse topics →</button>';
+  h+='</div></div>';
+
+  // Refine / Context — optional second input
+  h+='<div style="margin-bottom:14px">';
+  h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:10px 14px 10px 14px;display:flex;align-items:flex-start;gap:9px;box-shadow:var(--shadow-soft)">';
+  h+='<span style="color:var(--ink-soft);font-size:14px;flex-shrink:0;margin-top:2px">💬</span>';
+  h+='<textarea id="refineTA" rows="1" placeholder="Add context or refine topic (optional)…" style="flex:1;min-width:0;background:transparent;border:none;padding:0;font-size:13.5px;color:var(--ink);outline:none;font-family:inherit;resize:none;line-height:1.45">'+esc(S.refineContext||"")+'</textarea>';
+  h+='</div></div>';
+
   // Style segmented control
-  h+='<div style="display:flex;align-items:center;gap:9px;flex:1 1 0;min-width:200px">';
-  h+='<span style="font-size:10px;font-weight:700;color:#9490a6;text-transform:uppercase;letter-spacing:0.09em;flex-shrink:0;width:38px">Style</span>';
-  h+='<div style="display:flex;background:#f0eef4;border-radius:9px;padding:3px;border:1px solid #e2dfe8;flex:1 1 0;min-width:0">';
-  h+='<button class="styleBtn" data-s="lecture" style="flex:1 1 0;min-width:0;background:'+(S.style==="lecture"?"#fff":"transparent")+';color:'+(S.style==="lecture"?"#330662":"#6b6780")+';border:none;border-radius:6px;padding:6px 0;font-size:12.5px;font-weight:'+(S.style==="lecture"?"600":"500")+';cursor:pointer;box-shadow:'+(S.style==="lecture"?"0 1px 3px rgba(51,6,98,0.10)":"none")+';transition:all .15s ease;text-align:center">Lecture</button>';
-  h+='<button class="styleBtn" data-s="boards" style="flex:1 1 0;min-width:0;background:'+(S.style==="boards"?"#fff":"transparent")+';color:'+(S.style==="boards"?"#330662":"#6b6780")+';border:none;border-radius:6px;padding:6px 0;font-size:12.5px;font-weight:'+(S.style==="boards"?"600":"500")+';cursor:pointer;box-shadow:'+(S.style==="boards"?"0 1px 3px rgba(51,6,98,0.10)":"none")+';transition:all .15s ease;text-align:center">Boards</button>';
+  h+='<div style="margin-bottom:10px">';
+  h+='<div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin:0 0 6px 4px">Style</div>';
+  h+='<div style="display:flex;background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;box-shadow:var(--shadow-soft)">';
+  h+='<button class="styleBtn" data-s="lecture" style="flex:1 1 0;min-width:0;background:'+(S.style==="lecture"?"#fff":"transparent")+';color:'+(S.style==="lecture"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.style==="lecture"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.style==="lecture"?"600":"500")+';cursor:pointer;box-shadow:'+(S.style==="lecture"?"var(--shadow-soft)":"none")+';display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s ease"><span style="font-size:13px">🎓</span>Lecture</button>';
+  h+='<button class="styleBtn" data-s="boards" style="flex:1 1 0;min-width:0;background:'+(S.style==="boards"?"#fff":"transparent")+';color:'+(S.style==="boards"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.style==="boards"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.style==="boards"?"600":"500")+';cursor:pointer;box-shadow:'+(S.style==="boards"?"var(--shadow-soft)":"none")+';display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s ease"><span style="font-size:13px">📋</span>Boards</button>';
   h+='</div></div>';
-  // Depth segmented control — inactive in Boards mode (depth doesn't apply to a single vignette)
+
+  // Depth segmented control
   var depthInactive = (S.style === "boards");
-  h+='<div style="display:flex;align-items:center;gap:9px;flex:1 1 0;min-width:200px;opacity:'+(depthInactive?"0.4":"1")+';pointer-events:'+(depthInactive?"none":"auto")+'" title="'+(depthInactive?"Depth doesn\'t apply to Boards questions":"5 min vs 10 min talk")+'">';
-  h+='<span style="font-size:10px;font-weight:700;color:#9490a6;text-transform:uppercase;letter-spacing:0.09em;flex-shrink:0;width:38px">Depth</span>';
-  h+='<div style="display:flex;background:#f0eef4;border-radius:9px;padding:3px;border:1px solid #e2dfe8;flex:1 1 0;min-width:0">';
-  h+='<button class="depthBtn" data-d="concise" title="~5 min" style="flex:1 1 0;min-width:0;background:'+(S.depth==="concise"?"#fff":"transparent")+';color:'+(S.depth==="concise"?"#330662":"#6b6780")+';border:none;border-radius:6px;padding:6px 0;font-size:12.5px;font-weight:'+(S.depth==="concise"?"600":"500")+';cursor:pointer;box-shadow:'+(S.depth==="concise"?"0 1px 3px rgba(51,6,98,0.10)":"none")+';transition:all .15s ease;text-align:center">Concise</button>';
-  h+='<button class="depthBtn" data-d="detailed" title="~10 min" style="flex:1 1 0;min-width:0;background:'+(S.depth==="detailed"?"#fff":"transparent")+';color:'+(S.depth==="detailed"?"#330662":"#6b6780")+';border:none;border-radius:6px;padding:6px 0;font-size:12.5px;font-weight:'+(S.depth==="detailed"?"600":"500")+';cursor:pointer;box-shadow:'+(S.depth==="detailed"?"0 1px 3px rgba(51,6,98,0.10)":"none")+';transition:all .15s ease;text-align:center">Detailed</button>';
+  h+='<div style="margin-bottom:14px;opacity:'+(depthInactive?"0.4":"1")+';pointer-events:'+(depthInactive?"none":"auto")+'" title="'+(depthInactive?"Depth doesnt apply to Boards":"5 min vs 10 min")+'">';
+  h+='<div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin:0 0 6px 4px">Depth</div>';
+  h+='<div style="display:flex;background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;box-shadow:var(--shadow-soft)">';
+  h+='<button class="depthBtn" data-d="concise" title="~5 min" style="flex:1 1 0;min-width:0;background:'+(S.depth==="concise"?"#fff":"transparent")+';color:'+(S.depth==="concise"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.depth==="concise"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.depth==="concise"?"600":"500")+';cursor:pointer;box-shadow:'+(S.depth==="concise"?"var(--shadow-soft)":"none")+';display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s ease"><span style="font-size:13px">⊜</span>Concise</button>';
+  h+='<button class="depthBtn" data-d="detailed" title="~10 min" style="flex:1 1 0;min-width:0;background:'+(S.depth==="detailed"?"#fff":"transparent")+';color:'+(S.depth==="detailed"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.depth==="detailed"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.depth==="detailed"?"600":"500")+';cursor:pointer;box-shadow:'+(S.depth==="detailed"?"var(--shadow-soft)":"none")+';display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s ease"><span style="font-size:13px">≣</span>Detailed</button>';
   h+='</div></div>';
-  h+='</div>';
 
-  // Upload
-  h+='<div style="background:#fff;border:1px solid #e8e6f0;border-radius:11px;padding:4px;margin-bottom:14px"><div id="dropZone" style="border:1px dashed #d0cce0;border-radius:8px;padding:13px 16px;text-align:center;cursor:pointer;transition:all .15s ease;display:flex;align-items:center;justify-content:center;gap:8px"><span style="color:#c4c0d0;font-size:14px;font-weight:300">+</span><span style="font-size:12px;color:#9490a6;letter-spacing:0.005em">Drop in references to ground Claude in your sources <span style="color:#c4c0d0">(optional)</span></span></div><input type="file" id="fileInput" multiple accept=".pdf,.txt,.png,.jpg,.jpeg" style="display:none">';
-  for(var fi=0;fi<S.files.length;fi++)h+='<div style="display:flex;justify-content:space-between;background:#f8f7fa;border-radius:8px;padding:6px 12px;margin-top:6px"><span style="font-size:12px;color:#6b6780">\uD83D\uDCC4 '+esc(S.files[fi].n)+'</span><button class="rmFile" data-i="'+fi+'" style="background:none;border:none;color:#9490a6;font-size:16px">\u00D7</button></div>';
+  // References row
+  h+='<div id="dropZone" style="background:var(--cream);border:1px dashed #d8cfe6;border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:all .15s ease">';
+  h+='<span style="background:var(--lavender-soft);color:var(--plum);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:400;flex-shrink:0">+</span>';
+  h+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--ink);line-height:1.25">Add references <span style="color:var(--ink-soft);font-weight:400;font-size:12px">(optional)</span></div><div style="font-size:11px;color:var(--ink-muted);margin-top:2px;line-height:1.35">Upload PDFs, paste links, or add notes</div></div>';
+  h+='<span style="color:var(--ink-soft);font-size:14px;flex-shrink:0">⌄</span>';
+  h+='<input type="file" id="fileInput" multiple accept=".pdf,.txt,.png,.jpg,.jpeg" style="display:none">';
   h+='</div>';
-  // Podcast checkbox
-  h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">';
-  // Verify w/ current literature — inactive in Boards mode (boards questions are guideline-anchored, web search unhelpful)
+  for(var fi=0;fi<S.files.length;fi++)h+='<div style="display:flex;justify-content:space-between;background:var(--lavender-bg);border-radius:8px;padding:6px 12px;margin-bottom:6px"><span style="font-size:12px;color:var(--ink)">📄 '+esc(S.files[fi].n)+'</span><button class="rmFile" data-i="'+fi+'" style="background:none;border:none;color:var(--ink-muted);font-size:16px;cursor:pointer">×</button></div>';
+
+  // Toggles — Verify / Podcast as stacked rows with switches
   var verifyInactive = (S.style === "boards");
-  h+='<label style="display:inline-flex;align-items:center;gap:8px;padding:8px 13px;background:'+(verifyInactive?"#fafafd":(S.wantWebSearch?"#eee6f3":"#fff"))+';border:1px solid '+(verifyInactive?"#e8e6f0":(S.wantWebSearch?"#ab82c5":"#e2dfe8"))+';border-radius:8px;cursor:'+(verifyInactive?"not-allowed":"pointer")+';font-size:12.5px;color:'+(verifyInactive?"#a8a3b8":(S.wantWebSearch?"#330662":"#5a5670"))+';transition:all .15s ease;flex:1;min-width:160px;opacity:'+(verifyInactive?"0.55":"1")+';pointer-events:'+(verifyInactive?"none":"auto")+'" title="'+(verifyInactive?"Not used for Boards (questions are anchored to guidelines)":"")+'"><input type="checkbox" id="webCheck" '+(S.wantWebSearch&&!verifyInactive?"checked":"")+' '+(verifyInactive?"disabled":"")+' style="width:15px;height:15px;accent-color:#702b9d;flex-shrink:0;cursor:'+(verifyInactive?"not-allowed":"pointer")+'"><span style="font-weight:'+(S.wantWebSearch?"600":"500")+'">Verify w/ current literature</span></label>';
-  h+='<label style="display:inline-flex;align-items:center;gap:8px;padding:8px 13px;background:'+(S.wantPod?"#eee6f3":"#fff")+';border:1px solid '+(S.wantPod?"#ab82c5":"#e2dfe8")+';border-radius:8px;cursor:pointer;font-size:12.5px;color:'+(S.wantPod?"#330662":"#5a5670")+';transition:all .15s ease;flex:1;min-width:160px"><input type="checkbox" id="podCheck" '+(S.wantPod?"checked":"")+' style="width:15px;height:15px;accent-color:#702b9d;flex-shrink:0;cursor:pointer"><span style="font-weight:'+(S.wantPod?"600":"500")+'">Generate audio podcast</span></label>';
+  h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow-soft)">';
+  h+='<label style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:'+(verifyInactive?"not-allowed":"pointer")+';opacity:'+(verifyInactive?"0.5":"1")+'" title="'+(verifyInactive?"Not used for Boards":"")+'">';
+  h+='<span style="background:var(--lavender-soft);color:var(--plum);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">📄</span>';
+  h+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--ink);line-height:1.25">Verify with current literature</div><div style="font-size:11px;color:var(--ink-muted);margin-top:2px;line-height:1.35">Use up-to-date, peer-reviewed sources</div></div>';
+  h+='<span class="toggle-sw"><input type="checkbox" id="webCheck" '+(S.wantWebSearch&&!verifyInactive?"checked":"")+' '+(verifyInactive?"disabled":"")+'><span class="slider"></span></span>';
+  h+='</label>';
+  h+='<div style="height:1px;background:var(--line-soft)"></div>';
+  h+='<label style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">';
+  h+='<span style="background:var(--lavender-soft);color:var(--plum);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🎧</span>';
+  h+='<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--ink);line-height:1.25">Generate audio podcast</div><div style="font-size:11px;color:var(--ink-muted);margin-top:2px;line-height:1.35">Create a narrated audio version</div></div>';
+  h+='<span class="toggle-sw"><input type="checkbox" id="podCheck" '+(S.wantPod?"checked":"")+'><span class="slider"></span></span>';
+  h+='</label>';
   h+='</div>';
-  // Generate + Reset
-  h+='<div style="display:flex;gap:10px;margin-bottom:8px"><button id="genBtn" data-mgen '+(S.loading||!S.topic.trim()?"disabled":"")+' style="flex:1;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:12px;padding:16px;color:#fff;font-size:16px;font-weight:600;opacity:'+(S.loading||!S.topic.trim()?"0.4":"1")+'">'+(S.loading?"Generating...":"Generate Chalk Talk")+'</button>';
-  if(S.talk)h+='<button id="resetBtn" style="background:#fff;border:2px solid #e2dfe8;border-radius:12px;padding:16px 20px;color:#6b6780;font-size:14px;font-weight:600;white-space:nowrap">\u21BB Reset</button>';
-  h+='</div>';
-  if(S.loading)h+='<div style="background:#fff;border:1px solid #e2dfe8;border-radius:10px;padding:14px 18px;margin-bottom:8px;text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:10px"><div class="spinner"></div><span style="font-size:13px;color:#702b9d;font-weight:500">'+esc(S.loadMsg)+'</span><span style="font-size:12px;color:#9490a6">'+S.loadSec+'s</span></div></div>';
-  if(S.error)h+='<p style="color:#c0392b;font-size:14px;text-align:center;margin-top:4px;margin-bottom:8px">'+esc(S.error)+'</p>';
 
-  // ═══ RESULTS ═══
+  // Sticky bottom Generate CTA + privacy note
+  h+='<div class="compose-cta"><div class="compose-cta-inner">';
+  h+='<button id="genBtn" '+(S.loading||!S.topic.trim()?"disabled":"")+' style="width:100%;background:linear-gradient(135deg,var(--plum-rich) 0%,var(--plum-deep) 100%);border:none;border-radius:18px;padding:16px 20px;color:#fff;font-size:15px;font-weight:600;letter-spacing:0.005em;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(75,17,111,0.28);opacity:'+(S.loading||!S.topic.trim()?"0.45":"1")+';cursor:'+(S.loading||!S.topic.trim()?"not-allowed":"pointer")+';transition:all .15s ease"><span style="font-size:14px">✨</span>'+(S.loading?"Generating…":"Generate Chalk Talk")+'<span style="font-size:14px">→</span></button>';
+  if(S.loading)h+='<div style="margin-top:8px;text-align:center;font-size:11.5px;color:var(--plum)"><span class="spinner" style="margin-right:6px"></span>'+esc(S.loadMsg)+' · '+S.loadSec+'s</div>';
+  if(S.error)h+='<p style="color:#c0392b;font-size:12px;text-align:center;margin-top:6px">'+esc(S.error)+'</p>';
+  h+='<p class="compose-cta-note"><span style="opacity:.7">🔒</span> Your content is private and never shared.</p>';
+  h+='</div></div>';
+
+  } // end if(!S.talk)
+
+  // ═══ GENERATED STATE — capsule + 2x2 mode grid + accordion + composer ═══
   if(S.talk){var t=S.talk,vm=t.visual_memory_card,isBQ=!!(t.question);
-    h+='<div id="talkStart" style="margin-top:14px;border-top:1px solid #e8e6f0;padding-top:14px;scroll-margin-top:8px">';
-    // Title — editorial headline, no gradient block
-    h+='<div style="text-align:left;margin-bottom:10px;padding:0 2px"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span style="background:#eee6f3;color:#702b9d;border:1px solid #d4baea;border-radius:14px;padding:2px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.02em">'+(isBQ?"\uD83D\uDCCB Boards":"\uD83C\uDF93 Lecture")+'</span>'+(S.isSampleTalk?' <span style="background:#f0f7f0;color:#2d6a2d;border:1px solid #c8e0c8;border-radius:14px;padding:2px 10px;font-size:10.5px;font-weight:600">\uD83D\uDCD6 Sample</span>':'')+(S.sharedTalk?' <span style="background:#fff4e6;color:#8a5a2a;border:1px solid #e8c897;border-radius:14px;padding:2px 10px;font-size:10.5px;font-weight:600">\uD83D\uDD17 Shared</span>':'')+'</div><h1 style="font-family:Georgia,\"Times New Roman\",serif;font-size:22px;font-weight:600;margin:0;color:#1f1c2e;line-height:1.2;letter-spacing:-0.005em">'+esc(t.title)+'</h1><p style="font-size:12.5px;color:#6b6780;margin:5px 0 0;line-height:1.4;font-style:italic">'+esc(t.subtitle||"")+'</p></div>';
+    var refsCount=(t.references||[]).length||(S.files||[]).length;
+    var styleLbl=(isBQ?"Boards":"Lecture");
+    var depthLbl=(S.style==="boards")?"":(S.depth==="detailed"?"Detailed":"Concise");
+    // Compute total minutes from sections
+    var totalMin=0;
+    if(t.sections){for(var smi=0;smi<t.sections.length;smi++){var mm=String(t.sections[smi].minutes||"").match(/(\d+(?:\.\d+)?)/);if(mm)totalMin+=parseFloat(mm[1])}}
+    if(!totalMin)totalMin=isBQ?5:(S.depth==="detailed"?10:5);
 
-    // Save / Export action bar
-    h+='<div style="background:#fff;border:1px solid #e8e6f0;border-radius:10px;padding:6px;margin-bottom:10px;box-shadow:0 1px 2px rgba(45,42,62,0.03)"><div style="display:flex;gap:6px;flex-wrap:wrap"><button id="saveTalkBtn" style="flex:1;min-width:120px;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:7px;padding:9px 12px;color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:0.005em;transition:all .15s ease;box-shadow:0 1px 4px rgba(112,43,157,0.18)">\u2605 Save</button><button id="pdfTalkBtn" style="flex:1;min-width:100px;background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:9px 12px;color:#5a5670;font-size:12.5px;font-weight:600;cursor:pointer;letter-spacing:0.005em;transition:all .15s ease">PDF</button><button id="shareTalkBtn" style="flex:1;min-width:100px;background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:9px 12px;color:#5a5670;font-size:12.5px;font-weight:600;cursor:pointer;letter-spacing:0.005em;transition:all .15s ease">Share link</button><button id="jsonTalkBtn" style="flex:1;min-width:80px;background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:9px 12px;color:#9490a6;font-size:12.5px;font-weight:500;cursor:pointer;font-family:ui-monospace,Menlo,monospace;letter-spacing:0.005em;transition:all .15s ease">JSON</button></div>';
-    if(S.savedFlash)h+='<div style="margin-top:10px;padding:8px 12px;background:#f0f7f0;border:1px solid #b8d8b8;border-radius:8px;color:#2d6a2d;font-size:12px;font-weight:600;text-align:center">'+esc(S.savedFlash)+'</div>';
+    // === Capsule header ===
+    h+='<div id="talkStart" style="scroll-margin-top:8px"></div>';
+    h+='<div class="tk-capsule">';
+    h+='<button class="cap-back" id="resetBtn" title="New talk">←</button>';
+    h+='<div class="cap-meta"><b>'+esc(t.title||S.topic)+'</b><span class="sep">·</span>'+styleLbl+(depthLbl?' <span class="sep">·</span>'+depthLbl:'')+(refsCount>0?' <span class="sep">·</span>'+refsCount+' ref'+(refsCount===1?'':'s'):'')+'</div>';
+    h+='<div class="cap-actions">';
+    h+='<button id="editSettingsBtn" class="cap-primary" title="Edit settings">✏️ <span class="hide-mobile-text">Edit settings</span></button>';
+    h+='<button id="rebuildBtn" title="Rebuild">↻ <span class="hide-mobile-text">Rebuild</span></button>';
+    h+='<button id="overflowBtn" class="cap-more" title="More">⋯</button>';
+    h+='</div>';
     h+='</div>';
 
-    // Guideline Sources Badge
-    var glSources = (t.guideline_sources && t.guideline_sources.length > 0 && t.guideline_sources[0]) ? t.guideline_sources : (S.glRef ? S.glRef.sources.slice(0,4) : null);
-    if(glSources && glSources.length > 0){
-      h+='<div style="background:#f0f7f0;border:1px solid #b8d8b8;border-radius:10px;padding:10px 14px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:16px">\uD83D\uDCDA</span><span style="font-size:12px;font-weight:700;color:#2d6a2d;text-transform:uppercase;letter-spacing:.5px">Grounded in Open-Access Guidelines</span></div><div style="display:flex;flex-wrap:wrap;gap:6px">';
-      for(var gi=0;gi<glSources.length;gi++){h+='<span style="background:#e0f0e0;border:1px solid #b8d8b8;border-radius:6px;padding:3px 10px;font-size:11px;color:#2d6a2d;font-weight:500">'+esc(glSources[gi])+'</span>'}
-      h+='</div>';
-      if(S.glRef && S.glRef.trials && S.glRef.trials.length > 0){
-        h+='<div style="margin-top:8px;font-size:11px;color:#5a8a5a"><span style="font-weight:600">Key Trials:</span> '+esc(S.glRef.trials.slice(0,8).join(" · "))+'</div>';
-      }
-      if(S.glRef && S.glRef.conferences && S.glRef.conferences.length > 0){
-        h+='<div style="margin-top:4px;font-size:11px;color:#5a8a5a"><span style="font-weight:600">Major Conferences:</span> '+esc(S.glRef.conferences.slice(0,4).join(" · "))+'</div>';
-      }
+    // Overflow menu (rendered conditionally)
+    if(S.overflowOpen){
+      h+='<div class="overflow-menu" id="overflowMenu">';
+      h+='<button id="saveTalkBtn">★ Save</button>';
+      h+='<button id="shareTalkBtn">🔗 Share link</button>';
+      h+='<button id="pdfTalkBtn">📄 Export PDF</button>';
+      h+='<button id="jsonTalkBtn">{} Export JSON</button>';
+      h+='<button id="newTalkBtn" class="danger">✕ New talk</button>';
       h+='</div>';
     }
+    if(S.savedFlash)h+='<div style="margin-bottom:10px;padding:8px 12px;background:#f0f7f0;border:1px solid #b8d8b8;border-radius:8px;color:#2d6a2d;font-size:12px;font-weight:600;text-align:center">'+esc(S.savedFlash)+'</div>';
 
-    // BOARDS
-    if(isBQ){
-      var q=t.question;
-      // ABIM breadcrumb (if classification provided)
-      if(t.abim_classification&&(t.abim_classification.category||t.abim_classification.subcategory)){
-        var ab=t.abim_classification;
-        h+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:12px;padding:8px 14px;background:#fafafd;border:1px solid #e8e6f0;border-radius:10px;font-size:11px;color:#6b6780;letter-spacing:0.01em">';
-        h+='<span style="font-size:9.5px;font-weight:700;color:#9490a6;text-transform:uppercase;letter-spacing:0.09em;margin-right:4px">ABIM Blueprint</span>';
-        if(ab.category)h+='<span style="background:#eee6f3;color:#330662;padding:2px 9px;border-radius:6px;font-weight:600;font-size:11px">'+esc(ab.category)+'</span>';
-        if(ab.subcategory)h+='<span style="color:#9490a6;font-weight:400">\u203a</span><span style="background:#fff;color:#702b9d;padding:2px 9px;border-radius:6px;font-weight:500;font-size:11px;border:1px solid #d4baea">'+esc(ab.subcategory)+'</span>';
-        if(ab.specific_topic)h+='<span style="color:#9490a6;font-weight:400">\u203a</span><span style="color:#5a5670;font-size:11px">'+esc(ab.specific_topic)+'</span>';
-        if(ab.blueprint_weight)h+='<span style="margin-left:auto;font-size:10px;color:#9490a6;font-family:ui-monospace,Menlo,monospace">'+esc(ab.blueprint_weight)+'</span>';
-        h+='</div>';
-      }
-      h+='<div style="background:#fff;border:1px solid #ece9f1;border-radius:10px;padding:16px 16px;margin-bottom:10px;overflow-wrap:break-word;word-break:break-word;max-width:100%;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap"><div style="font-size:12px;font-weight:700;color:#702b9d;text-transform:uppercase;letter-spacing:.5px">\uD83D\uDCCB Clinical Vignette</div><button id="copyQBtn" style="background:#fff;border:1px solid #d0cce0;border-radius:7px;padding:5px 11px;color:#702b9d;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.01em;transition:all .15s ease;display:inline-flex;align-items:center;gap:5px;flex-shrink:0">\uD83D\uDCCB Copy</button></div><p style="font-size:14.5px;color:#2d2a3e;line-height:1.6;margin:0 0 8px;text-align:left;word-break:break-word;overflow-wrap:break-word;white-space:normal;max-width:100%">'+esc(q.stem)+'</p><div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;clear:both">';
-      for(var ci=0;ci<(q.choices||[]).length;ci++){var ch=q.choices[ci];var picked=S.userPick===ch.letter;var isRight=ch.correct&&S.showAns;var isWrongPick=picked&&!ch.correct&&S.showAns;var isWrongNotPicked=!ch.correct&&!picked&&S.showAns;var borderStyle=isRight?"2px solid #2d8a2d":isWrongPick?"2px solid #c0392b":picked&&!S.showAns?"2px solid #702b9d":isWrongNotPicked?"1px solid #e8c8c0":"1px solid #e2dfe8";var bgStyle=isRight?"#f0f7f0":isWrongPick?"#fdf0ee":picked&&!S.showAns?"#eee6f3":"#fff";var textColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":"#4a4660";var letterColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":picked&&!S.showAns?"#702b9d":"#702b9d";var suffix=isRight?" \u2713":isWrongPick?" \u2717":"";h+='<button class="choiceBtn" data-letter="'+ch.letter+'" style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;border:'+borderStyle+';background:'+bgStyle+';cursor:'+(S.showAns?"default":"pointer")+';text-align:left;width:100%"><span style="font-weight:700;color:'+letterColor+';font-size:14px;flex-shrink:0">'+ch.letter+'.</span><span style="font-size:14px;color:'+textColor+';line-height:1.5">'+esc(ch.text)+suffix+'</span></button>'}
-      h+='</div>';
-      if(!S.showAns){
-        if(S.userPick)h+='<button id="submitAnsBtn" style="width:100%;margin-top:16px;background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:14px;color:#fff;font-size:15px;font-weight:600;cursor:pointer">\u2713 Submit Answer</button>';
-        else h+='<div style="text-align:center;margin-top:12px;font-size:13px;color:#9490a6;font-style:italic">Select your answer above, then submit</div>';
-      }
-      if(S.showAns){
-        var gotIt=S.userPick===q.correct_letter;
-        h+='<div style="margin-top:16px;padding:16px;border-radius:10px;text-align:center;font-size:16px;font-weight:700;background:'+(gotIt?"#f0f7f0":"#fdf0ee")+';border:2px solid '+(gotIt?"#2d8a2d":"#c0392b")+';color:'+(gotIt?"#2d6a2d":"#c0392b")+'">'+(gotIt?"\uD83C\uDF89 Correct! You selected "+S.userPick:"\u274C Incorrect. You selected "+S.userPick+" \u2014 the correct answer is "+q.correct_letter)+'</div>';
-      }
-      h+='</div>';
-      // Explanation (hidden until answer submitted)
-      if(S.showAns){
-      h+='<div style="background:#fff;border:1px solid #ece9f1;border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="font-size:11.5px;font-weight:700;color:#2d6a2d;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">\u2713 Correct Answer: '+esc(q.correct_letter)+'</div><p style="font-size:13.5px;color:#3a3650;line-height:1.55;margin:0 0 14px">'+renderCite(q.explanation,t.references)+'</p>';
-      if((q.wrong_explanations||[]).length>0){h+='<div style="font-size:11px;font-weight:700;color:#8a3a2a;text-transform:uppercase;margin-bottom:8px">Why other answers are wrong</div>';for(var wi=0;wi<q.wrong_explanations.length;wi++){var w=q.wrong_explanations[wi];h+='<div style="font-size:12.5px;color:#4a4660;line-height:1.55;margin-bottom:6px;display:flex;gap:8px"><span style="font-weight:700;color:#8a3a2a;flex-shrink:0">'+esc(w.letter)+'.</span><span>'+renderCite(w.why,t.references)+'</span></div>'}}
-      h+='</div>';
-      }
-      // Feedback button
-      if(S.showAns){
-        if(!S.showFeedback){h+='<button id="feedbackToggle" style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2dfe8;border-radius:10px;padding:10px 16px;margin-bottom:16px;cursor:pointer;font-size:13px;color:#8a3a2a"><span>\uD83D\uDEA9</span> Disagree with this answer? Give feedback</button>'}
-        else{h+='<div style="background:#fff;border:2px solid #e67e22;border-radius:12px;padding:18px 20px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#e67e22;margin-bottom:10px">\uD83D\uDEA9 What\u2019s wrong with this answer?</div><textarea id="feedbackTA" rows="3" placeholder="e.g. 3% saline is first-line for symptomatic hyponatremia, not fluid restriction..." style="width:100%;background:#f8f7fa;border:1.5px solid #e2dfe8;border-radius:8px;padding:12px 16px;font-size:14px;color:#2d2a3e;resize:vertical;outline:none;margin-bottom:10px">'+esc(S.feedbackText)+'</textarea><div style="display:flex;gap:10px"><button id="feedbackSubmit" '+(S.feedbackBusy?"disabled":"")+' style="flex:1;background:linear-gradient(135deg,#e67e22,#d35400);border:none;border-radius:8px;padding:12px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.feedbackBusy||!S.feedbackText.trim()?"0.4":"1")+'">'+(S.feedbackBusy?"Correcting...":"Submit Feedback & Regenerate")+'</button><button id="feedbackCancel" style="background:#f8f7fa;border:1px solid #e2dfe8;border-radius:8px;padding:12px 16px;color:#6b6780;font-size:13px">Cancel</button></div></div>'}
-      }
-      // Board pearls (only show when we actually have non-empty pearls)
-      var nonEmptyPearls=(t.board_pearls||[]).filter(function(p){return p&&String(p).trim().length>0});
-      if(nonEmptyPearls.length>0){
-        h+='<div style="background:#fff;border:1px solid #f0c89c;border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#e67e22;margin-bottom:10px">\uD83C\uDFAF High-Yield Board Pearls</div>';
-        for(var pi=0;pi<nonEmptyPearls.length;pi++)h+='<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px"><span style="background:#e67e22;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'+(pi+1)+'</span><span style="font-size:13.5px;color:#3a3650;line-height:1.55">'+renderCite(nonEmptyPearls[pi],t.references)+'</span></div>';
-        h+='</div>';
-      }
-      // Teaching points (only when non-empty)
-      var nonEmptyTPs=(t.teaching_points||[]).filter(function(p){return p&&String(p).trim().length>0});
-      if(nonEmptyTPs.length>0){h+='<div style="background:#fff;border:1px solid #c8e0c8;border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#2d6a2d;margin-bottom:10px">\uD83D\uDCA1 Key Teaching Points</div>';for(var tp=0;tp<nonEmptyTPs.length;tp++)h+='<div style="font-size:13.5px;color:#3a3650;line-height:1.55;display:flex;gap:8px;margin-bottom:5px"><span style="color:#5a8a5a;font-weight:600;flex-shrink:0">\u25B8</span>'+renderCite(nonEmptyTPs[tp],t.references)+'</div>';h+='</div>'}
-    }
-    // LECTURE
-    if(!isBQ&&(t.sections||[]).length>0){
-      h+='<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">';
-      for(var si2=0;si2<t.sections.length;si2++){var x=t.sections[si2];h+='<button class="secBtn" data-i="'+si2+'" style="display:flex;align-items:center;gap:10px;background:'+(S.sec===si2?"#fafafd":"#fff")+';border:1px solid '+(S.sec===si2?"#c4a3da":"#ece9f1")+';border-radius:8px;padding:9px 12px;width:100%;text-align:left;transition:all .15s ease"><span style="background:'+(S.sec===si2?"#330662":"#eee6f3")+';color:'+(S.sec===si2?"#fff":"#330662")+';width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">'+(si2+1)+'</span><span style="flex:1;font-size:13px;color:#4a4660;font-weight:500">'+esc(x.heading)+'</span><span style="font-size:11px;color:#9490a6">'+esc(x.minutes)+'</span></button>'}
-      h+='</div>';
-      var cs=t.sections[S.sec];
-      if(cs){h+='<div style="background:#fff;border:1px solid #ece9f1;border-radius:10px;padding:16px 16px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;border-bottom:1px solid #f0eef4;padding-bottom:7px"><h2 style="font-family:Georgia,\"Times New Roman\",serif;font-size:16px;font-weight:600;margin:0;color:#330662;letter-spacing:-0.005em">'+esc(cs.heading)+'</h2><span style="font-size:11px;color:#9490a6;font-weight:500;text-transform:uppercase;letter-spacing:0.05em">'+esc(cs.minutes)+'</span></div><div style="display:flex;flex-direction:column;gap:7px">';
-        for(var pi2=0;pi2<(cs.points||[]).length;pi2++)h+='<div style="font-size:13.5px;color:#3a3650;line-height:1.55;display:flex;gap:8px"><span style="color:#9b6dc2;font-weight:600;flex-shrink:0">\u25B8</span>'+esc(cs.points[pi2])+'</div>';
-        h+='</div>';
-        if(cs.teaching_pearl)h+='<div style="margin-top:16px;background:#f0f7f0;border:1px solid #c8e0c8;border-radius:8px;padding:12px 14px"><div style="font-size:11px;font-weight:700;color:#2d6a2d;text-transform:uppercase;margin-bottom:4px">\uD83D\uDCA1 Teaching Pearl</div><div style="font-size:12.5px;color:#2d6a2d;line-height:1.55">'+renderCite(cs.teaching_pearl,t.references)+'</div></div>';
-        if(cs.board_tip)h+='<div style="margin-top:10px;background:#fdf0ee;border:1px solid #e8c8c0;border-radius:8px;padding:12px 14px"><div style="font-size:11px;font-weight:700;color:#8a3a2a;text-transform:uppercase;margin-bottom:4px">\uD83C\uDFAF Board Tip</div><div style="font-size:12.5px;color:#8a3a2a;line-height:1.55">'+renderCite(cs.board_tip,t.references)+'</div></div>';
-        h+='</div>'}
-    }
-    // Diagram
-    h+='<div style="background:#fff;border:1px solid #ece9f1;border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><span style="font-size:22px">\uD83C\uDFA8</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Visual Aid</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.dgMode==="ai"?(S.dg&&S.dg.imgB64?"Generated with Nano Banana 2":(S.dg&&S.dg.hadImage?"\u2728 This saved talk had an image \u2014 click regenerate to restore":"AI illustration (needs Gemini key)")):(findDiagramTemplate(S.topic)?"\uD83D\uDCD0 Canonical template available":"Simple flowchart (no key needed)"))+'</div></div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.dgBusy?".6":"1")+'">'+(S.dgBusy?"Generating...":(S.dg&&(S.dg.imgB64||S.dg.svg))?"\u21BB Regenerate":"Generate")+'</button></div>';
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px"><button class="dgModeBtn" data-m="ai" style="background:'+(S.dgMode==="ai"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="ai"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="ai"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 8px;font-size:11px;font-weight:600;cursor:pointer">\uD83C\uDFA8 Gemini Image</button><button class="dgModeBtn" data-m="openai" style="background:'+(S.dgMode==="openai"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="openai"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="openai"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 8px;font-size:11px;font-weight:600;cursor:pointer">\uD83D\uDCAC ChatGPT Image</button><button class="dgModeBtn" data-m="svg" style="background:'+(S.dgMode==="svg"?"#330662":"#f8f7fa")+';color:'+(S.dgMode==="svg"?"#fff":"#6b6780")+';border:1px solid '+(S.dgMode==="svg"?"#330662":"#e2dfe8")+';border-radius:8px;padding:8px 8px;font-size:11px;font-weight:600;cursor:pointer">\uD83D\uDCC8 Simple Diagram</button></div>';
-    if(S.dgErr)h+='<div style="color:#c0392b;font-size:12px;margin-top:10px">'+esc(S.dgErr)+(S.dgMode==="ai"?' <a href="#" id="resetKey" style="color:#702b9d;text-decoration:underline">Reset API key</a>':"")+'</div>';
-    if(S.dg&&S.dg.imgB64)h+='<div style="background:#fff;border-radius:12px;padding:8px;margin-top:12px;border:1px solid #eee6f3"><img src="data:image/png;base64,'+S.dg.imgB64+'" style="width:100%;height:auto;display:block;border-radius:8px"/></div>';
-    if(S.dg&&S.dg.svg)h+='<div style="background:#2d2a3e;border-radius:12px;padding:20px;margin-top:12px">'+diagSVG(S.dg.svg)+'</div>';
-    if(S.dg&&S.dg.template)h+='<div style="background:#fff;border-radius:12px;padding:14px;margin-top:12px;border:1px solid #e8e6f0;box-shadow:0 1px 3px rgba(45,42,62,0.05)"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 4px"><span style="font-size:10px;font-weight:700;color:#702b9d;text-transform:uppercase;letter-spacing:0.09em">\uD83D\uDCD0 Canonical diagram</span><span style="font-size:10px;color:#9490a6;font-weight:500">'+esc(S.dg.template.specialty||"")+'</span></div>'+S.dg.template.svg+'</div>';
-    h+='</div>';
-    // Podcast
-    h+='<div style="background:#fff;border:1px solid #ece9f1;border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:12px"><span style="font-size:22px">\uD83C\uDFA7</span><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#330662">Audio Podcast</div><div style="font-size:12px;color:#9490a6;margin-top:2px">'+(S.podScript?"Listen while walking or driving":"Generate podcast narration")+'</div></div>';
-    if(!S.podScript)h+='<button id="podGenBtn" '+(S.podBusy?"disabled":"")+' style="background:linear-gradient(135deg,#330662,#702b9d);border:none;border-radius:10px;padding:12px 24px;color:#fff;font-size:14px;font-weight:600;opacity:'+(S.podBusy?".6":"1")+'">'+(S.podBusy?"Writing...":"Generate Podcast")+'</button>';
-    h+='</div>';
-    if(S.podScript){h+='<div style="margin-top:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><button id="podPlayBtn" style="background:'+(S.podPlaying?"#c0392b":"#330662")+';border:none;border-radius:50%;width:44px;height:44px;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center">'+(S.podPlaying?"\u23F8":"\u25B6")+'</button><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#330662">'+(S.podPlaying?"Playing...":"Ready to play")+'</div><div style="font-size:11px;color:#9490a6">Uses your device speaker</div></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#9490a6">Speed:</span>';
-      [0.75,1,1.25,1.5].forEach(function(r){h+='<button class="rateBtn" data-r="'+r+'" style="background:'+(S.podRate===r?"#330662":"#eee6f3")+';color:'+(S.podRate===r?"#fff":"#330662")+';border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600">'+r+'x</button>'});
-      h+='</div></div><button id="podToggle" style="background:none;border:none;color:#702b9d;font-size:12px;font-weight:600;margin-bottom:'+(S.podShow?"8px":"0")+'">'+(S.podShow?"\u25BE Hide script":"\u25B8 Show script")+'</button>';
-      if(S.podShow)h+='<div style="background:#f8f7fa;border-radius:8px;padding:14px 16px;font-size:13px;color:#4a4660;line-height:1.7;max-height:300px;overflow-y:auto;white-space:pre-wrap">'+esc(S.podScript)+'</div>';
-      h+='</div>'}
-    h+='</div>';
-    // VMC — collapsed by default; click to expand
-    if(!S.vmcOpen){
-      h+='<div style="background:linear-gradient(135deg,#330662,#702b9d);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;color:#fff" id="vmcOpenBtn"><div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="font-size:18px">\uD83D\uDCF8</span><div style="min-width:0"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#fff">Visual Memory Card</div><div style="font-size:11px;color:rgba(255,255,255,.72);margin-top:1px">Tap to expand · ready to download</div></div></div><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:4px 10px;white-space:nowrap">Show \u2192</span></div>';
-    } else {
-    // VMC
-    h+='<div id="vmcCard" style="background:linear-gradient(145deg,#330662 0%,#4a1a7a 50%,#702b9d 100%);border-radius:16px;padding:28px 22px;color:#fff;position:relative"><button data-html2canvas-ignore="true" id="downloadVMCBtn" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:6px 12px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.01em;transition:all .15s ease;display:flex;align-items:center;gap:5px;backdrop-filter:blur(8px)" onmouseover="this.style.background=\'rgba(255,255,255,0.22)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.12)\'">\u{1F4F8} Download</button><div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><span style="font-size:20px">\uD83D\uDCF8</span><div><div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#ab82c5">Visual Memory Card</div><div style="font-size:11px;color:rgba(255,255,255,.55)">Download for slides or share to Twitter</div></div></div><div style="font-size:20px;font-weight:700;text-align:center;margin-bottom:18px">'+esc(t.title)+'</div>';
-    if(vm){
-      var vmcLabels = isBQ
-        ? [["Vignette key",vm.top_left],["Mechanism",vm.top_right],["Pearl",vm.bottom_left],["Pitfall",vm.bottom_right]]
-        : [["Mechanism",vm.top_left],["Findings",vm.top_right],["Workup",vm.bottom_left],["Treatment",vm.bottom_right]];
-      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px">';
-      vmcLabels.forEach(function(q2){
-        if(!q2[1])return;
-        h+='<div style="background:rgba(255,255,255,.07);border-radius:11px;padding:13px 14px;border:1px solid rgba(255,255,255,.13);min-height:88px;display:flex;flex-direction:column;gap:6px"><div style="font-size:9.5px;font-weight:700;color:#c4a3da;text-transform:uppercase;letter-spacing:0.1em">'+q2[0]+'</div><div style="font-size:13px;color:rgba(255,255,255,.92);line-height:1.45;font-weight:400">'+esc(q2[1])+'</div></div>';
-      });
-      h+='</div>';
-    }
-    h+='<div style="border-top:1px solid rgba(255,255,255,.15);padding-top:14px"><div style="font-size:11px;font-weight:700;color:#ab82c5;text-transform:uppercase;margin-bottom:8px">Key Takeaways</div>';
-    for(var ki=0;ki<(t.summary_points||[]).length;ki++)h+='<div style="display:flex;gap:9px;align-items:flex-start;margin-bottom:7px;font-size:12.5px;color:rgba(255,255,255,.88);line-height:1.5"><span style="background:rgba(255,255,255,.15);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+(ki+1)+'</span>'+renderCite(t.summary_points[ki],t.references)+'</div>';
-    h+='</div>';  // close takeaways border-top
-    // VMC branded footer (inside vmcCard, captured by html2canvas)
-    h+='<div style="border-top:1px solid rgba(255,255,255,.12);margin-top:14px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:10.5px;color:rgba(255,255,255,.55);letter-spacing:0.04em">';
-    h+='<span style="font-weight:600;color:rgba(255,255,255,.78);letter-spacing:0.08em">CHALK TALK</span>';
+    // === Lesson title block ===
+    h+='<div class="tk-lessontitle"><h1>'+esc(t.title||"")+'</h1>';
+    if(t.subtitle)h+='<p class="ttl-sub">'+esc(t.subtitle)+'</p>';
+    // Pills
     var spec=(S.glRef&&S.glRef.specialties&&S.glRef.specialties[0])||"";
-    if(!spec&&S.sampleSlug&&typeof SAMPLES!=="undefined"){for(var sli=0;sli<SAMPLES.length;sli++){if(SAMPLES[sli].slug===S.sampleSlug){spec=SAMPLES[sli].specialty||"";break}}}
-    if(spec)h+='<span style="font-weight:500;color:rgba(255,255,255,.6)">'+esc(spec)+'</span>';
-    h+='<span style="font-weight:500;color:rgba(255,255,255,.55);font-family:ui-monospace,Menlo,monospace;font-size:9.5px">tangjennii-wq.github.io/chalk-talk</span>';
+    if(!spec&&S.sampleSlug&&typeof SAMPLES!=="undefined"){for(var ssli=0;ssli<SAMPLES.length;ssli++){if(SAMPLES[ssli].slug===S.sampleSlug){spec=SAMPLES[ssli].specialty||"";break}}}
+    h+='<div class="ttl-pills">';
+    h+='<span class="tk-pill">'+(isBQ?"📋 Boards":"🎓 Lecture")+'</span>';
+    h+='<span class="tk-pill gray">⏱ '+(totalMin%1===0?totalMin:totalMin.toFixed(1))+' min</span>';
+    h+='<span class="tk-pill green">✓ Evidence-grounded</span>';
+    if(S.isSampleTalk)h+='<span class="tk-pill gray">📖 Sample</span>';
     h+='</div>';
-    h+='</div>';  // close vmcCard
-      h+='<button id="vmcCloseBtn" style="display:block;margin:8px auto 14px;background:#fff;border:1px solid #e2dfe8;border-radius:8px;padding:6px 14px;color:#702b9d;font-size:11.5px;font-weight:600;cursor:pointer">Hide \u2191</button>';
+    h+='</div>';
+
+    // === 2x2 mode grid ===
+    var MODES=isBQ?[["overview","📄","Overview"],["audio","🔉","Audio"],["export","⬆","Export"]]:[["overview","📄","Overview"],["slides","📊","Slides"],["visual","🖼","Visual"],["audio","🔉","Audio"]];
+    h+='<div class="mode-grid">';
+    for(var mi=0;mi<MODES.length;mi++){
+      var m2=MODES[mi];
+      h+='<button class="mode-card '+(S.tab===m2[0]?"active":"")+'" data-tab="'+m2[0]+'"><span class="mc-ico">'+m2[1]+'</span>'+m2[2]+'</button>';
     }
-    // References block (only shown if talk has references)
-    if(t.references&&t.references.length){
-      h+='<div style="background:#fff;border:1px solid #ece9f1;border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:#9490a6;text-transform:uppercase;letter-spacing:0.09em;margin-bottom:10px">References</div><ol style="list-style:none;counter-reset:cite;padding:0;margin:0">';
-      for(var rfi=0;rfi<t.references.length;rfi++){
-        var rf=t.references[rfi];
-        var meta=[];
-        if(rf.year)meta.push(String(rf.year));
-        if(rf.society)meta.push(esc(rf.society));
-        if(rf.type==="trial")meta.push("trial");
-        h+='<li style="counter-increment:cite;display:flex;gap:10px;font-size:12.5px;line-height:1.5;color:#4a4660;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #e8e6f0"><span style="background:#eee6f3;color:#702b9d;border:1px solid #d4baea;border-radius:4px;padding:0 6px;font-size:10.5px;font-weight:600;flex-shrink:0;height:fit-content;margin-top:1px">'+esc(String(rf.id))+'</span><span style="flex:1"><strong style="color:#330662">'+esc(rf.source||("Reference "+rf.id))+'</strong>'+(meta.length?' <span style="font-size:11px;color:#9490a6">\u00B7 '+meta.join(" \u00B7 ")+'</span>':'')+(rf.url?'<br><a href="'+esc(rf.url)+'" target="_blank" rel="noopener" style="color:#702b9d;text-decoration:none;font-size:11.5px;border-bottom:1px solid #d4baea">'+esc(rf.url.length>60?rf.url.slice(0,60)+"...":rf.url)+'</a>':'')+'</span></li>';
+    h+='</div>';
+
+    // ---------------- OVERVIEW TAB ----------------
+    if(S.tab==="overview"){
+      // Guideline collapsible
+      var glSources=(t.guideline_sources&&t.guideline_sources.length>0&&t.guideline_sources[0])?t.guideline_sources:(S.glRef?S.glRef.sources.slice(0,4):null);
+      if(glSources&&glSources.length>0){
+        h+='<div class="guideline-row '+(S.gldOpen?"open":"")+'">';
+        h+='<button class="gr-head" id="gldToggle"><span style="font-size:14px">📚</span><span class="gr-count">'+glSources.length+' guideline'+(glSources.length===1?'':'s')+'</span>';
+        if(!S.gldOpen){
+          // Collapsed: show first 3 chip names inline
+          h+='<span class="gr-chips">';
+          for(var gci=0;gci<Math.min(3,glSources.length);gci++)h+=(gci?' · ':'')+esc(glSources[gci].length>22?glSources[gci].slice(0,22)+'…':glSources[gci]);
+          h+='</span>';
+        } else {
+          h+='<span style="flex:1"></span>';
+        }
+        h+='<span class="gr-chev">⌄</span></button>';
+        if(S.gldOpen){h+='<div class="gr-body">';for(var gi=0;gi<glSources.length;gi++)h+='<span>'+esc(glSources[gi])+'</span>';h+='</div>'}
+        h+='</div>';
       }
-      h+='</ol></div>';
+
+      // BOARDS view
+      if(isBQ){
+        var q=t.question;
+        if(t.abim_classification&&(t.abim_classification.category||t.abim_classification.subcategory)){
+          var ab=t.abim_classification;
+          h+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:7px 12px;background:var(--cream);border:1px solid var(--line);border-radius:10px;font-size:11px;color:var(--ink-muted)">';
+          h+='<span style="font-size:9.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.09em;margin-right:4px">ABIM</span>';
+          if(ab.category)h+='<span style="background:var(--lavender-bg);color:var(--plum-deep);padding:1px 8px;border-radius:6px;font-weight:600">'+esc(ab.category)+'</span>';
+          if(ab.subcategory)h+='<span style="color:var(--ink-soft)">›</span><span style="color:var(--plum)">'+esc(ab.subcategory)+'</span>';
+          h+='</div>';
+        }
+        h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow-soft)"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:11px;font-weight:700;color:var(--plum);text-transform:uppercase;letter-spacing:0.05em">📋 Clinical Vignette</div><button id="copyQBtn" style="background:#fff;border:1px solid var(--line);border-radius:7px;padding:5px 10px;color:var(--plum);font-size:11px;font-weight:600;cursor:pointer">📋 Copy</button></div><p style="font-size:14px;color:var(--ink);line-height:1.55;margin:0;word-break:break-word">'+esc(q.stem)+'</p><div style="margin-top:14px;display:flex;flex-direction:column;gap:7px">';
+        for(var ci=0;ci<(q.choices||[]).length;ci++){var ch=q.choices[ci];var picked=S.userPick===ch.letter;var isRight=ch.correct&&S.showAns;var isWrongPick=picked&&!ch.correct&&S.showAns;var borderStyle=isRight?"2px solid #2d8a2d":isWrongPick?"2px solid #c0392b":picked&&!S.showAns?"2px solid var(--plum)":"1px solid var(--line)";var bgStyle=isRight?"#f0f7f0":isWrongPick?"#fdf0ee":picked&&!S.showAns?"var(--lavender-bg)":"#fff";var textColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":"var(--ink)";var letterColor=isRight?"#2d6a2d":isWrongPick?"#c0392b":"var(--plum)";var suffix=isRight?" ✓":isWrongPick?" ✗":"";h+='<button class="choiceBtn" data-letter="'+ch.letter+'" style="display:flex;gap:9px;align-items:flex-start;padding:9px 12px;border-radius:8px;border:'+borderStyle+';background:'+bgStyle+';cursor:'+(S.showAns?"default":"pointer")+';text-align:left;width:100%"><span style="font-weight:700;color:'+letterColor+';font-size:13px;flex-shrink:0">'+ch.letter+'.</span><span style="font-size:13px;color:'+textColor+';line-height:1.45">'+esc(ch.text)+suffix+'</span></button>'}
+        h+='</div>';
+        if(!S.showAns){if(S.userPick)h+='<button id="submitAnsBtn" style="width:100%;margin-top:14px;background:linear-gradient(135deg,var(--plum-rich),var(--plum-deep));border:none;border-radius:10px;padding:12px;color:#fff;font-size:14px;font-weight:600;cursor:pointer">✓ Submit</button>';else h+='<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--ink-muted);font-style:italic">Pick an answer above</div>'}
+        else{var gotIt=S.userPick===q.correct_letter;h+='<div style="margin-top:14px;padding:12px;border-radius:10px;text-align:center;font-size:14px;font-weight:700;background:'+(gotIt?"#f0f7f0":"#fdf0ee")+';border:2px solid '+(gotIt?"#2d8a2d":"#c0392b")+';color:'+(gotIt?"#2d6a2d":"#c0392b")+'">'+(gotIt?"🎉 Correct! "+S.userPick:"❌ Incorrect — answer is "+q.correct_letter)+'</div>'}
+        h+='</div>';
+        if(S.showAns){
+          h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:#2d6a2d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">✓ Correct: '+esc(q.correct_letter)+'</div><p style="font-size:13px;color:var(--ink);line-height:1.55;margin:0 0 12px">'+renderCite(q.explanation,t.references)+'</p>';
+          if((q.wrong_explanations||[]).length>0){h+='<div style="font-size:10.5px;font-weight:700;color:#8a3a2a;text-transform:uppercase;margin-bottom:6px">Why others are wrong</div>';for(var wi=0;wi<q.wrong_explanations.length;wi++){var w=q.wrong_explanations[wi];h+='<div style="font-size:12px;color:var(--ink);line-height:1.5;margin-bottom:5px;display:flex;gap:7px"><span style="font-weight:700;color:#8a3a2a;flex-shrink:0">'+esc(w.letter)+'.</span><span>'+renderCite(w.why,t.references)+'</span></div>'}}
+          h+='</div>';
+        }
+        var nonEmptyPearls=(t.board_pearls||[]).filter(function(p){return p&&String(p).trim().length>0});
+        if(nonEmptyPearls.length>0){h+='<div style="background:var(--cream);border:1px solid #f0c89c;border-radius:14px;padding:14px;margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#e67e22;margin-bottom:10px">🎯 Board Pearls</div>';for(var pi=0;pi<nonEmptyPearls.length;pi++)h+='<div style="display:flex;gap:9px;align-items:flex-start;margin-bottom:7px"><span style="background:#e67e22;color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;flex-shrink:0">'+(pi+1)+'</span><span style="font-size:13px;color:var(--ink);line-height:1.5">'+renderCite(nonEmptyPearls[pi],t.references)+'</span></div>';h+='</div>'}
+      }
+
+      // LECTURE — accordion lesson outline (hero content)
+      if(!isBQ&&(t.sections||[]).length>0){
+        var totLbl=totalMin%1===0?totalMin:totalMin.toFixed(1);
+        h+='<div class="outline-head"><span>Lesson outline</span><span class="total">Total ~'+totLbl+' min</span></div>';
+        for(var si2=0;si2<t.sections.length;si2++){
+          var x=t.sections[si2];
+          var open=(S.activeSection===si2);
+          h+='<div class="tk-acc '+(open?"open":"")+'">';
+          h+='<button class="tk-acc-head secBtn" data-i="'+si2+'"><span class="tk-acc-num">'+(si2+1)+'</span><span class="tk-acc-ttl">'+esc(x.heading)+'</span><span class="tk-acc-min">'+esc(x.minutes||"")+'</span><span class="tk-acc-chev">⌄</span></button>';
+          if(open){
+            h+='<div class="tk-acc-body"><ul>';
+            for(var pi2=0;pi2<(x.points||[]).length;pi2++)h+='<li>'+esc(x.points[pi2])+'</li>';
+            h+='</ul>';
+            if(x.teaching_pearl)h+='<div style="margin-top:11px;background:#f0f7f0;border:1px solid #c8e0c8;border-radius:10px;padding:10px 12px"><div style="font-size:10.5px;font-weight:700;color:#2d6a2d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">💡 Teaching Pearl</div><div style="font-size:12px;color:#2d6a2d;line-height:1.5">'+renderCite(x.teaching_pearl,t.references)+'</div></div>';
+            if(x.board_tip)h+='<div style="margin-top:8px;background:#fdf0ee;border:1px solid #e8c8c0;border-radius:10px;padding:10px 12px"><div style="font-size:10.5px;font-weight:700;color:#8a3a2a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px">🎯 Board Tip</div><div style="font-size:12px;color:#8a3a2a;line-height:1.5">'+renderCite(x.board_tip,t.references)+'</div></div>';
+            h+='</div>';
+          }
+          h+='</div>';
+        }
+      }
+
+      // References inline (compact)
+      if(t.references&&t.references.length){
+        h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:12px 0 8px"><div style="font-size:10.5px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:8px">References</div><ol style="list-style:none;padding:0;margin:0">';
+        for(var rfi=0;rfi<t.references.length;rfi++){var rf=t.references[rfi];var meta=[];if(rf.year)meta.push(String(rf.year));if(rf.society)meta.push(esc(rf.society));h+='<li style="display:flex;gap:8px;font-size:11.5px;line-height:1.5;color:var(--ink);margin-bottom:6px;padding-bottom:6px;border-bottom:1px dashed var(--line-soft)"><span style="background:var(--lavender-bg);color:var(--plum);border-radius:4px;padding:0 6px;font-size:10px;font-weight:600;flex-shrink:0;height:fit-content;margin-top:1px">'+esc(String(rf.id))+'</span><span style="flex:1"><strong style="color:var(--plum-deep)">'+esc(rf.source||("Reference "+rf.id))+'</strong>'+(meta.length?' <span style="font-size:10.5px;color:var(--ink-muted)">· '+meta.join(" · ")+'</span>':'')+(rf.url?'<br><a href="'+esc(rf.url)+'" target="_blank" rel="noopener" style="color:var(--plum);text-decoration:none;font-size:10.5px;border-bottom:1px solid var(--lavender)">'+esc(rf.url.length>50?rf.url.slice(0,50)+"…":rf.url)+'</a>':'')+'</span></li>'}
+        h+='</ol></div>';
+      }
     }
+
+    // ---------------- SLIDES TAB ----------------
+    if(S.tab==="slides"&&!isBQ){
+      h+='<div style="background:linear-gradient(145deg,var(--plum-deep) 0%,#4a1a7a 50%,var(--plum-rich) 100%);border-radius:16px;padding:18px;color:#fff;margin-bottom:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--lavender);margin-bottom:6px">Slide Summary</div><div style="font-size:16px;font-weight:700;text-align:center;margin-bottom:14px">'+esc(t.title)+'</div>';
+      if(vm){var vmcLabels=[["Mechanism",vm.top_left],["Findings",vm.top_right],["Workup",vm.bottom_left],["Treatment",vm.bottom_right]];h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';vmcLabels.forEach(function(q2){if(!q2[1])return;h+='<div style="background:rgba(255,255,255,.07);border-radius:10px;padding:11px 12px;border:1px solid rgba(255,255,255,.13)"><div style="font-size:9.5px;font-weight:700;color:#c4a3da;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">'+q2[0]+'</div><div style="font-size:12.5px;color:rgba(255,255,255,.92);line-height:1.45">'+esc(q2[1])+'</div></div>'});h+='</div>'}
+      h+='</div><div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow-soft)"><div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Key Takeaways</div>';
+      for(var ki=0;ki<(t.summary_points||[]).length;ki++)h+='<div style="display:flex;gap:9px;align-items:flex-start;margin-bottom:8px;font-size:12.5px;color:var(--ink);line-height:1.5"><span style="background:var(--lavender-bg);color:var(--plum);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;flex-shrink:0">'+(ki+1)+'</span><span style="flex:1">'+renderCite(t.summary_points[ki],t.references)+'</span></div>';
+      h+='</div>';
+    }
+
+    // ---------------- VISUAL TAB ----------------
+    if(S.tab==="visual"&&!isBQ){
+      h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow-soft)">';
+      h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="background:var(--lavender-soft);color:var(--plum);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px">🎨</span><div><div style="font-size:14px;font-weight:700;color:var(--ink)">Visual Aid</div><div style="font-size:11px;color:var(--ink-muted)">'+(S.dgMode==="ai"?(S.dg&&S.dg.imgB64?"Generated with Nano Banana 2":"AI illustration"):(findDiagramTemplate(S.topic)?"Canonical template":"Simple flowchart"))+'</div></div></div>';
+      h+='<div style="display:flex;gap:5px;margin-bottom:10px"><button class="dgModeBtn" data-m="ai" style="flex:1;background:'+(S.dgMode==="ai"?"var(--plum-deep)":"var(--cream)")+';color:'+(S.dgMode==="ai"?"#fff":"var(--ink-muted)")+';border:1px solid '+(S.dgMode==="ai"?"var(--plum-deep)":"var(--line)")+';border-radius:8px;padding:7px;font-size:10.5px;font-weight:600;cursor:pointer">🎨 Gemini</button><button class="dgModeBtn" data-m="openai" style="flex:1;background:'+(S.dgMode==="openai"?"var(--plum-deep)":"var(--cream)")+';color:'+(S.dgMode==="openai"?"#fff":"var(--ink-muted)")+';border:1px solid '+(S.dgMode==="openai"?"var(--plum-deep)":"var(--line)")+';border-radius:8px;padding:7px;font-size:10.5px;font-weight:600;cursor:pointer">💬 ChatGPT</button><button class="dgModeBtn" data-m="svg" style="flex:1;background:'+(S.dgMode==="svg"?"var(--plum-deep)":"var(--cream)")+';color:'+(S.dgMode==="svg"?"#fff":"var(--ink-muted)")+';border:1px solid '+(S.dgMode==="svg"?"var(--plum-deep)":"var(--line)")+';border-radius:8px;padding:7px;font-size:10.5px;font-weight:600;cursor:pointer">📈 Simple</button></div>';
+      if(S.dgErr)h+='<div style="color:#c0392b;font-size:11.5px;margin-bottom:10px">'+esc(S.dgErr)+'</div>';
+      if(S.dg&&S.dg.imgB64){h+='<div style="background:#fff;border-radius:10px;padding:6px;border:1px solid var(--line);margin-bottom:10px;cursor:zoom-in" id="lightboxOpenBtn"><img src="data:image/png;base64,'+S.dg.imgB64+'" style="width:100%;height:auto;display:block;border-radius:7px"/></div>';h+='<button id="lightboxOpenBtn2" style="width:100%;background:linear-gradient(135deg,var(--plum-rich),var(--plum-deep));border:none;border-radius:10px;padding:11px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:6px">🔍 Open full image</button><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="width:100%;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--plum);font-size:13px;font-weight:600;cursor:pointer">↻ Regenerate</button>';}
+      else if(S.dg&&S.dg.svg){h+='<div style="background:var(--ink);border-radius:10px;padding:14px;margin-bottom:10px">'+diagSVG(S.dg.svg)+'</div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="width:100%;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--plum);font-size:13px;font-weight:600;cursor:pointer">↻ Regenerate</button>'}
+      else if(S.dg&&S.dg.template){h+='<div style="background:#fff;border-radius:10px;padding:10px;border:1px solid var(--line);margin-bottom:10px">'+S.dg.template.svg+'</div><button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="width:100%;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--plum);font-size:13px;font-weight:600;cursor:pointer">↻ Regenerate</button>'}
+      else{h+='<button id="dgBtn" '+(S.dgBusy?"disabled":"")+' style="width:100%;background:linear-gradient(135deg,var(--plum-rich),var(--plum-deep));border:none;border-radius:10px;padding:13px;color:#fff;font-size:13.5px;font-weight:600;cursor:pointer">'+(S.dgBusy?"Generating…":"✨ Generate Visual")+'</button>'}
+      h+='</div>';
+    }
+
+    // ---------------- AUDIO TAB ----------------
+    if(S.tab==="audio"){
+      h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow-soft)">';
+      h+='<div style="display:flex;align-items:center;gap:11px;margin-bottom:14px"><span style="background:var(--lavender-soft);color:var(--plum);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px">🎧</span><div><div style="font-size:14px;font-weight:700;color:var(--ink)">Audio Podcast</div><div style="font-size:11.5px;color:var(--ink-muted)">'+(S.podScript?"Listen while walking or driving":"Generate narrated version")+'</div></div></div>';
+      if(!S.podScript){h+='<button id="podGenBtn" '+(S.podBusy?"disabled":"")+' style="width:100%;background:linear-gradient(135deg,var(--plum-rich),var(--plum-deep));border:none;border-radius:10px;padding:13px;color:#fff;font-size:14px;font-weight:600;cursor:pointer">'+(S.podBusy?"Writing…":"✨ Generate Podcast")+'</button>'}
+      else{var wc=S.podScript.split(/\s+/).length;var mn=Math.floor(wc/150);var sc=Math.round((wc/150-mn)*60);var dur=mn+":"+(sc<10?"0"+sc:sc);h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:8px;background:var(--paper);border-radius:12px"><button id="podPlayBtn" style="background:'+(S.podPlaying?"#c0392b":"var(--plum-deep)")+';border:none;border-radius:50%;width:48px;height:48px;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">'+(S.podPlaying?"⏸":"▶")+'</button><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;color:var(--ink)">'+(S.podPlaying?"Playing…":"Ready to play")+'</div><div style="font-size:11.5px;color:var(--ink-muted)">'+dur+' min · Uses your device speaker</div></div></div>';h+='<div style="display:flex;gap:5px;margin-bottom:10px"><span style="font-size:11px;color:var(--ink-muted);align-self:center;margin-right:5px">Speed</span>';[0.75,1,1.25,1.5].forEach(function(r){h+='<button class="rateBtn" data-r="'+r+'" style="flex:1;background:'+(S.podRate===r?"var(--plum-deep)":"var(--cream)")+';color:'+(S.podRate===r?"#fff":"var(--ink-muted)")+';border:1px solid '+(S.podRate===r?"var(--plum-deep)":"var(--line)")+';border-radius:8px;padding:6px 4px;font-size:11px;font-weight:600;cursor:pointer">'+r+'x</button>'});h+='</div><button id="podToggle" style="background:none;border:none;color:var(--plum);font-size:12px;font-weight:600;cursor:pointer;padding:4px 0">'+(S.podShow?"▾ Hide script":"▸ Show script")+'</button>';if(S.podShow)h+='<div style="background:var(--paper);border-radius:8px;padding:11px 13px;font-size:12px;color:var(--ink);line-height:1.65;max-height:280px;overflow-y:auto;white-space:pre-wrap;margin-top:6px">'+esc(S.podScript)+'</div>'}
+      h+='</div>';
+    }
+
+    // ---------------- EXPORT TAB ----------------
+    if(S.tab==="export"){
+      if(vm){
+        h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow-soft)">';
+        h+='<div style="display:flex;align-items:center;gap:11px;margin-bottom:11px"><span style="background:var(--lavender-soft);color:var(--plum);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px">📸</span><div><div style="font-size:13.5px;font-weight:700;color:var(--ink)">Visual Memory Card</div><div style="font-size:11px;color:var(--ink-muted)">Download for slides or share to Twitter</div></div></div>';
+        h+='<div id="vmcCard" style="background:linear-gradient(145deg,var(--plum-deep) 0%,#4a1a7a 50%,var(--plum-rich) 100%);border-radius:12px;padding:14px;color:#fff;margin-bottom:12px"><div style="font-size:14px;font-weight:700;text-align:center;margin-bottom:10px">'+esc(t.title)+'</div>';
+        var vmcLabels2=isBQ?[["Vignette",vm.top_left],["Mechanism",vm.top_right],["Pearl",vm.bottom_left],["Pitfall",vm.bottom_right]]:[["Mechanism",vm.top_left],["Findings",vm.top_right],["Workup",vm.bottom_left],["Treatment",vm.bottom_right]];
+        h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+        vmcLabels2.forEach(function(q2){if(!q2[1])return;h+='<div style="background:rgba(255,255,255,.07);border-radius:8px;padding:8px 9px;border:1px solid rgba(255,255,255,.13)"><div style="font-size:8.5px;font-weight:700;color:#c4a3da;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">'+q2[0]+'</div><div style="font-size:11px;color:rgba(255,255,255,.92);line-height:1.4">'+esc(q2[1])+'</div></div>'});
+        h+='</div><div style="border-top:1px solid rgba(255,255,255,.12);margin-top:10px;padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,.55);letter-spacing:0.04em"><span style="font-weight:600;color:rgba(255,255,255,.78);letter-spacing:0.08em">CHALK TALK</span><span style="font-family:ui-monospace,Menlo,monospace">tangjennii-wq.github.io/chalk-talk</span></div></div>';
+        h+='<button id="downloadVMCBtn" data-html2canvas-ignore="true" style="width:100%;background:linear-gradient(135deg,var(--plum-rich),var(--plum-deep));border:none;border-radius:10px;padding:12px;color:#fff;font-size:13.5px;font-weight:600;cursor:pointer;margin-bottom:6px;display:inline-flex;align-items:center;justify-content:center;gap:6px">⬇ Download</button>';
+        h+='<button id="shareTwitterBtn" style="width:100%;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);font-size:13.5px;font-weight:600;cursor:pointer">🐦 Share to Twitter</button>';
+        h+='</div>';
+      }
+      h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:12px;padding:6px;display:flex;flex-direction:column">';
+      h+='<button id="pdfTalkBtn" style="background:none;border:none;border-bottom:1px solid var(--line-soft);padding:11px 13px;display:flex;align-items:center;gap:11px;cursor:pointer;text-align:left"><span style="color:var(--plum);font-size:14px">📄</span><span style="flex:1;font-size:13px;font-weight:600;color:var(--ink)">Export as PDF</span><span style="color:var(--ink-soft)">›</span></button>';
+      h+='<button id="shareTalkBtn" style="background:none;border:none;border-bottom:1px solid var(--line-soft);padding:11px 13px;display:flex;align-items:center;gap:11px;cursor:pointer;text-align:left"><span style="color:var(--plum);font-size:14px">🔗</span><span style="flex:1;font-size:13px;font-weight:600;color:var(--ink)">Share link</span><span style="color:var(--ink-soft)">›</span></button>';
+      h+='<button id="jsonTalkBtn" style="background:none;border:none;padding:11px 13px;display:flex;align-items:center;gap:11px;cursor:pointer;text-align:left"><span style="color:var(--plum);font-size:14px;font-family:ui-monospace,Menlo,monospace">{}</span><span style="flex:1;font-size:13px;font-weight:600;color:var(--ink)">Export JSON</span><span style="color:var(--ink-soft)">›</span></button>';
+      h+='</div>';
+    }
+
+    // === Sticky bottom composer ===
+    h+='<nav class="composer">';
+    h+='<button class="ref-btn" id="composerRefBtn"><span style="font-size:14px">+</span> Reference</button>';
+    h+='<input class="revise-input" id="reviseIn" value="'+esc(S.reviseIn||"")+'" placeholder="Ask to revise lesson…">';
+    h+='<button class="send-btn" id="reviseSend" '+(!String(S.reviseIn||"").trim()?"disabled":"")+'>→</button>';
+    h+='</nav>';
+    h+='<input type="file" id="composerFileInput" multiple accept=".pdf,.txt,.png,.jpg,.jpeg" style="display:none">';
+
+    // === Lightbox modal ===
+    if(S.lightbox&&S.dg&&S.dg.imgB64)h+='<div class="tk-lightbox" id="lightboxClose"><img src="data:image/png;base64,'+S.dg.imgB64+'" alt="Visual aid"/><button class="tk-lightbox-close" id="lightboxCloseX">×</button></div>';
+
+    // === Edit settings drawer (bottom sheet) ===
+    h+='<div class="drawer-backdrop'+(S.editSettings?" open":"")+'" id="drawerBackdrop"></div>';
+    h+='<div class="drawer'+(S.editSettings?" open":"")+'" id="editDrawer">';
+    h+='<div class="drawer-handle"></div>';
+    h+='<div class="drawer-head"><div class="drawer-title">Edit settings</div><button class="drawer-close" id="drawerCloseBtn">×</button></div>';
+    h+='<div class="drawer-body">';
+    // Topic
+    h+='<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin:0 0 6px 4px">Topic</div><div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:6px 6px 6px 14px;display:flex;align-items:center;gap:8px"><span style="color:var(--ink-soft);font-size:14px">🔍</span><input id="topicTAd" type="text" value="'+esc(S.topic)+'" placeholder="Enter a topic…" style="flex:1;min-width:0;background:transparent;border:none;padding:8px 0;font-size:14px;outline:none;font-family:inherit"></div></div>';
+    // Refine
+    h+='<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin:0 0 6px 4px">Context (optional)</div><div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;align-items:flex-start;gap:9px"><span style="color:var(--ink-soft);font-size:14px;margin-top:2px">💬</span><textarea id="refineTAd" rows="2" placeholder="Add context or refine topic…" style="flex:1;min-width:0;background:transparent;border:none;padding:0;font-size:13.5px;outline:none;font-family:inherit;resize:vertical;line-height:1.45">'+esc(S.refineContext||"")+'</textarea></div></div>';
+    // Style
+    h+='<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin:0 0 6px 4px">Style</div><div style="display:flex;background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px">';
+    h+='<button class="styleBtn" data-s="lecture" style="flex:1 1 0;min-width:0;background:'+(S.style==="lecture"?"#fff":"transparent")+';color:'+(S.style==="lecture"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.style==="lecture"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.style==="lecture"?"600":"500")+';cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px"><span>🎓</span>Lecture</button>';
+    h+='<button class="styleBtn" data-s="boards" style="flex:1 1 0;min-width:0;background:'+(S.style==="boards"?"#fff":"transparent")+';color:'+(S.style==="boards"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.style==="boards"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.style==="boards"?"600":"500")+';cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px"><span>📋</span>Boards</button>';
+    h+='</div></div>';
+    // Depth
+    var dInact2=(S.style==="boards");
+    h+='<div style="margin-bottom:14px;opacity:'+(dInact2?"0.4":"1")+';pointer-events:'+(dInact2?"none":"auto")+'"><div style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.09em;margin:0 0 6px 4px">Depth</div><div style="display:flex;background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px">';
+    h+='<button class="depthBtn" data-d="concise" style="flex:1 1 0;min-width:0;background:'+(S.depth==="concise"?"#fff":"transparent")+';color:'+(S.depth==="concise"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.depth==="concise"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.depth==="concise"?"600":"500")+';cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px"><span>⊜</span>Concise</button>';
+    h+='<button class="depthBtn" data-d="detailed" style="flex:1 1 0;min-width:0;background:'+(S.depth==="detailed"?"#fff":"transparent")+';color:'+(S.depth==="detailed"?"var(--plum-deep)":"var(--ink-muted)")+';border:'+(S.depth==="detailed"?"1px solid var(--line)":"1px solid transparent")+';border-radius:10px;padding:9px 8px;font-size:13px;font-weight:'+(S.depth==="detailed"?"600":"500")+';cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px"><span>≣</span>Detailed</button>';
+    h+='</div></div>';
+    // References manager (in drawer)
+    h+='<div id="dropZone" style="background:var(--cream);border:1px dashed #d8cfe6;border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:11px;cursor:pointer">';
+    h+='<span style="background:var(--lavender-soft);color:var(--plum);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">+</span>';
+    h+='<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ink)">Add references</div><div style="font-size:11px;color:var(--ink-muted);margin-top:2px">Upload PDFs, paste links, or add notes</div></div>';
+    h+='<input type="file" id="fileInput" multiple accept=".pdf,.txt,.png,.jpg,.jpeg" style="display:none">';
     h+='</div>';
+    for(var fid=0;fid<S.files.length;fid++)h+='<div style="display:flex;justify-content:space-between;background:var(--lavender-bg);border-radius:8px;padding:6px 12px;margin-bottom:6px"><span style="font-size:12px;color:var(--ink)">📄 '+esc(S.files[fid].n)+'</span><button class="rmFile" data-i="'+fid+'" style="background:none;border:none;color:var(--ink-muted);font-size:16px">×</button></div>';
+    // Toggles in drawer
+    var vInact2=(S.style==="boards");
+    h+='<div style="background:var(--cream);border:1px solid var(--line);border-radius:14px;margin:6px 0 14px;overflow:hidden">';
+    h+='<label style="display:flex;align-items:center;gap:12px;padding:11px 13px;cursor:'+(vInact2?"not-allowed":"pointer")+';opacity:'+(vInact2?"0.5":"1")+'"><span style="background:var(--lavender-soft);color:var(--plum);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px">📄</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--ink)">Verify with current literature</div><div style="font-size:11px;color:var(--ink-muted);margin-top:2px">Use up-to-date, peer-reviewed sources</div></div><span class="toggle-sw"><input type="checkbox" id="webCheck" '+(S.wantWebSearch&&!vInact2?"checked":"")+' '+(vInact2?"disabled":"")+'><span class="slider"></span></span></label>';
+    h+='<div style="height:1px;background:var(--line-soft)"></div>';
+    h+='<label style="display:flex;align-items:center;gap:12px;padding:11px 13px;cursor:pointer"><span style="background:var(--lavender-soft);color:var(--plum);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px">🎧</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--ink)">Generate audio podcast</div><div style="font-size:11px;color:var(--ink-muted);margin-top:2px">Create a narrated audio version</div></div><span class="toggle-sw"><input type="checkbox" id="podCheck" '+(S.wantPod?"checked":"")+'><span class="slider"></span></span></label>';
+    h+='</div>';
+    // Rebuild CTA in drawer
+    h+='<button id="rebuildBtn2" style="width:100%;background:linear-gradient(135deg,var(--plum-rich),var(--plum-deep));border:none;border-radius:18px;padding:14px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px"><span>↻</span>Rebuild lesson</button>';
+    h+='</div></div>';
   }
 
   // ═══ FOOTER ═══
@@ -3015,7 +3268,39 @@ function bindMain(){
   var wc=document.getElementById("webCheck");if(wc)wc.onchange=function(e){S.wantWebSearch=e.target.checked};
   var gb=document.getElementById("genBtn");if(gb)gb.onclick=generate;
   var rb=document.getElementById("resetBtn");if(rb)rb.onclick=resetAll;
-  document.querySelectorAll(".secBtn").forEach(function(b){b.onclick=function(){S.sec=+b.dataset.i;render()}});
+  document.querySelectorAll(".secBtn").forEach(function(b){b.onclick=function(){var idx=+b.dataset.i;S.activeSection=(S.activeSection===idx?-1:idx);S.sec=idx;render()}});
+  // Tab switching (top + bottom nav)
+  document.querySelectorAll(".tk-tab,.bntab").forEach(function(b){b.onclick=function(){if(b.dataset.tab&&S.tab!==b.dataset.tab){S.tab=b.dataset.tab;render()}}});
+  // Guideline collapsible
+  var gtg=document.getElementById("gldToggle");if(gtg)gtg.onclick=function(){S.gldOpen=!S.gldOpen;render()};
+  var gtg2=document.getElementById("gldToggle2");if(gtg2)gtg2.onclick=function(){S.gldOpen=true;render()};
+  // Lightbox
+  var lo1=document.getElementById("lightboxOpenBtn");if(lo1)lo1.onclick=function(){S.lightbox=true;render()};
+  var lo2=document.getElementById("lightboxOpenBtn2");if(lo2)lo2.onclick=function(){S.lightbox=true;render()};
+  var lc=document.getElementById("lightboxClose");if(lc)lc.onclick=function(e){if(e.target===lc||e.target.id==="lightboxCloseX"){S.lightbox=false;render()}};
+  // Save/share variants from new header + action row
+  var st2=document.getElementById("saveTalkBtn2");if(st2)st2.onclick=function(){var btn=document.getElementById("saveTalkBtn");if(btn)btn.click()};
+  var sh2=document.getElementById("shareTalkBtn2");if(sh2)sh2.onclick=function(){var btn=document.getElementById("shareTalkBtn");if(btn)btn.click()};
+  var stwt=document.getElementById("shareTwitterBtn");if(stwt)stwt.onclick=function(){var btn=document.getElementById("shareTalkBtn");if(btn)btn.click()};
+  // Add has-talk class for bottom-nav padding
+  if(S.talk){document.querySelector(".app").classList.add("has-talk")}else{document.querySelector(".app").classList.remove("has-talk")}
+  // === Two-state UX bindings ===
+  var rta=document.getElementById("refineTA");if(rta)rta.oninput=function(e){S.refineContext=e.target.value};
+  var rtad=document.getElementById("refineTAd");if(rtad)rtad.oninput=function(e){S.refineContext=e.target.value};
+  var ttad=document.getElementById("topicTAd");if(ttad)ttad.oninput=function(e){S.topic=e.target.value};
+  document.querySelectorAll(".mode-card").forEach(function(b){b.onclick=function(){if(b.dataset.tab&&S.tab!==b.dataset.tab){S.tab=b.dataset.tab;render()}}});
+  var esb=document.getElementById("editSettingsBtn");if(esb)esb.onclick=function(){S.editSettings=true;S.overflowOpen=false;render()};
+  var rb1=document.getElementById("rebuildBtn");if(rb1)rb1.onclick=function(){S.editSettings=false;S.overflowOpen=false;generate()};
+  var rb2=document.getElementById("rebuildBtn2");if(rb2)rb2.onclick=function(){S.editSettings=false;generate()};
+  var ofb=document.getElementById("overflowBtn");if(ofb)ofb.onclick=function(e){e.stopPropagation();S.overflowOpen=!S.overflowOpen;render()};
+  if(S.overflowOpen){document.body.onclick=function(e){if(!e.target.closest(".overflow-menu")&&!e.target.closest("#overflowBtn")){S.overflowOpen=false;render()}}}else{document.body.onclick=null}
+  var nbt=document.getElementById("newTalkBtn");if(nbt)nbt.onclick=function(){S.overflowOpen=false;resetAll()};
+  var dcb=document.getElementById("drawerCloseBtn");if(dcb)dcb.onclick=function(){S.editSettings=false;render()};
+  var dbk=document.getElementById("drawerBackdrop");if(dbk)dbk.onclick=function(){S.editSettings=false;render()};
+  var crb=document.getElementById("composerRefBtn");if(crb)crb.onclick=function(){var fi=document.getElementById("composerFileInput")||document.getElementById("fileInput");if(fi)fi.click()};
+  var cfi=document.getElementById("composerFileInput");if(cfi)cfi.onchange=function(e){var fi2=document.getElementById("fileInput");if(fi2){var dt=new DataTransfer();for(var i=0;i<e.target.files.length;i++)dt.items.add(e.target.files[i]);fi2.files=dt.files;fi2.dispatchEvent(new Event("change",{bubbles:true}))}};
+  var rin=document.getElementById("reviseIn");if(rin){rin.oninput=function(e){S.reviseIn=e.target.value;var sb=document.getElementById("reviseSend");if(sb)sb.disabled=!e.target.value.trim()};rin.onkeydown=function(e){if(e.key==="Enter"&&!e.shiftKey&&String(S.reviseIn||"").trim()){e.preventDefault();S.chatIn=S.reviseIn;S.reviseIn="";if(typeof sendChat==="function")sendChat()}}}
+  var rsd=document.getElementById("reviseSend");if(rsd)rsd.onclick=function(){if(!String(S.reviseIn||"").trim())return;S.chatIn=S.reviseIn;S.reviseIn="";if(typeof sendChat==="function")sendChat()};
   var db=document.getElementById("dgBtn");if(db)db.onclick=genDiagram;
   document.querySelectorAll(".dgModeBtn").forEach(function(b){b.onclick=function(){if(S.dgMode!==b.dataset.m){S.dgMode=b.dataset.m;S.dg=null;S.dgErr="";render()}}});
   var rk=document.getElementById("resetKey");if(rk)rk.onclick=function(e){e.preventDefault();localStorage.removeItem("gemini_api_key");S.dgErr="API key cleared. Click Generate Visual to re-enter.";render()};
