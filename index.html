@@ -990,6 +990,12 @@ var PROXY_CONFIG = {
   url: ""
 };
 
+// ═══════════ RAG CONFIG ═══════════
+var RAG_CONFIG = {
+  enabled: true,
+  url: "https://chalk-talk-proxy.chalktalk.workers.dev"
+};
+
 // ═══════════ SUPABASE CONFIG ═══════════
 // Public URL + publishable (anon) key. Safe to commit — RLS enforces security.
 var SUPABASE_CONFIG = {
@@ -2628,6 +2634,35 @@ async function callAPIWithFallback(sys, content, maxTok, models, opts) {
 // Sonnet 4 used as middle-tier fallback when Opus is overloaded
 var MODEL_SONNET_FALLBACK = "claude-sonnet-4-20250514";
 
+
+// ═══════════ RAG RETRIEVAL ═══════════
+async function retrieveRAG(topic, opts) {
+  opts = opts || {};
+  if (!RAG_CONFIG.enabled || !RAG_CONFIG.url) return {text: "", chunks: []};
+  try {
+    var endpoint = RAG_CONFIG.url.replace(/\/$/, "") + "/retrieve";
+    var r = await fetch(endpoint, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ query: topic, match_count: opts.match_count || 10 })
+    });
+    if (!r.ok) { console.warn("RAG retrieve failed: " + r.status); return {text: "", chunks: []}; }
+    var data = await r.json();
+    var chunks = data.chunks || [];
+    if (!chunks.length) return {text: "", chunks: []};
+    var lines = chunks.map(function(c, i) {
+      var auths = (c.authors || "").split(",").slice(0, 3).join(",");
+      if (c.authors && c.authors.split(",").length > 3) auths += " et al.";
+      return "[" + (i+1) + "] " + (c.title || "(untitled)") + " — " + auths + ". " + (c.journal || "") + " " + (c.year || "") + ". PMID: " + (c.pmid || "n/a") + ".\nAbstract: " + (c.text || "");
+    });
+    var text = "\n\n═══ RETRIEVED PUBMED SOURCES (real, verified citations — use these to ground your talk) ═══\nThese are REAL peer-reviewed sources retrieved by semantic similarity. When stating a clinical fact you may cite inline like (Pan 2022, PMID: 36371256). DO NOT invent PMIDs, authors, or trial names — only cite from these sources or omit. Prefer recent reviews and meta-analyses.\n\n" + lines.join("\n\n---\n\n") + "\n═══ END RETRIEVED SOURCES ═══";
+    return {text: text, chunks: chunks};
+  } catch (e) {
+    console.warn("RAG retrieve error: " + e.message);
+    return {text: "", chunks: []};
+  }
+}
+
 // ═══════════ ACTIONS ═══════════
 function buildReferenceParts(files) {
   var parts = [];
@@ -2666,6 +2701,7 @@ async function generate(){
   loadTimer=setInterval(function(){S.loadSec++;var msgs=S.wantWebSearch?["Reasoning through physiology...","Searching current literature...","Cross-referencing societies...","Building content...","AI-checking...","Polishing final version..."]:["Reasoning through physiology...","Loading guidelines...","Building content...","AI-checking & polishing..."];S.loadMsg=msgs[Math.min(Math.floor(S.loadSec/3),msgs.length-1)];render()},1000);
   try{
     var glRef = getGuidelinesForTopic(S.topic);
+    var ragResult = await retrieveRAG(S.topic); var ragContext = ragResult.text || ""; S.ragChunks = ragResult.chunks || [];
     var guidelineContext = "";
     if (glRef) {
       guidelineContext = "\n\n═══ GUIDELINE REFERENCE CONTEXT (use this to anchor your recommendations) ═══" + glRef.context;
@@ -2679,7 +2715,7 @@ async function generate(){
       ? '\n\nDEPTH: CONCISE (~5-min summary). Keep this TIGHT. Same overall structure, but cut depth ~50%.\n- Each section: 3-4 BRIEF bullets (<=15 words each), not 5-7 long ones\n- Subtitle: <=10 words\n- Teaching pearl: 1 sentence, <=20 words\n- Board tip: 1 sentence, <=15 words\n- Visual memory card quadrants: <=8 words each, center: <=6 words\n- Summary points: <=20 words each, max 4 points\n- For boards style: vignette <=80 words, explanation 3-5 sentences, wrong explanations 1 sentence each, 3-4 board pearls (not 5), 3 teaching points <=20 words each.\nNO redundancy. No flowery language. Every word earns its place. Aim for clarity, not comprehensiveness.'
       : '\n\nDEPTH: DETAILED (full 10-min talk). Go deep. 5-7 substantive bullets per section exploring mechanism, evidence, clinical application. Teaching pearls and board tips can be 1-2 sentences with nuance. Aim for the full 10-min chalk talk experience.';
     var refineHint = (S.refineContext && S.refineContext.trim()) ? "\n\nUSER CONTEXT/REFINEMENT: " + S.refineContext.trim() : "";
-    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + refineHint + guidelineContext + depthHint + searchHint + '\nONLY JSON. Plain text values, no XML tags, no citation markup.'}].concat(buildReferenceParts(S.files));
+    var uc=[{type:"text",text:'Create content on: "'+S.topic+'"' + refineHint + guidelineContext + ragContext + depthHint + searchHint + '\nONLY JSON. Plain text values, no XML tags, no citation markup.'}].concat(buildReferenceParts(S.files));
     var sys=S.style==="boards"?BOARDS_PROMPT:LECTURE_PROMPT;
 
     // Step 1: Main generation with model fallback chain (Opus -> Sonnet -> Haiku)
