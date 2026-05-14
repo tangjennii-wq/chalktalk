@@ -234,6 +234,35 @@ textarea,input[type=text]{font-family:inherit}
   .app .choiceBtn { padding: 9px 12px !important; }
   .app .choiceBtn span:last-child { font-size: 13px !important; line-height: 1.45 !important; }
 }
+
+/* RAG sources panel */
+.rag-row { background:var(--cream); border:1px solid var(--line); border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:var(--shadow-soft); }
+.rag-row .rh-head { width:100%; display:flex; align-items:center; gap:8px; padding:11px 14px; background:transparent; border:none; cursor:pointer; font-size:13px; color:var(--ink); font-family:inherit; text-align:left; }
+.rag-row .rh-count { font-weight:600; color:var(--plum-deep); }
+.rag-row .rh-chips { flex:1; min-width:0; color:var(--ink-muted); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rag-row .rh-chev { color:var(--ink-soft); transition:transform .2s; font-size:14px; }
+.rag-row.open .rh-chev { transform:rotate(180deg); }
+.rag-row .rh-body { padding:0 14px 12px; display:flex; flex-direction:column; gap:8px; }
+.rag-card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+.rag-card .rc-head { display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+.rag-card .rc-title { font-weight:600; color:var(--ink); font-size:13px; line-height:1.35; margin-bottom:4px; }
+.rag-card .rc-meta { color:var(--ink-muted); font-size:11px; margin-bottom:8px; line-height:1.4; }
+.rag-card .rc-bottom { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.rag-card .rc-cited { font-size:11px; color:#2d6a2d; font-weight:600; }
+.rag-card .rc-uncited { font-size:11px; color:var(--ink-muted); }
+.rag-card .rc-pub-link { font-size:11px; color:var(--plum); text-decoration:none; font-weight:500; }
+.rag-card .rc-pub-link:hover { text-decoration:underline; }
+.rag-pill { display:inline-flex; align-items:center; gap:3px; padding:1px 7px; border-radius:6px; font-size:10px; font-weight:600; }
+.rag-pill-tier1 { background:#fef3c7; color:#92400e; }
+.rag-pill-tier2 { background:#e0e7ff; color:#3730a3; }
+.rag-pill-tier3 { background:#f3f4f6; color:#374151; }
+.rag-pill-tier4 { background:#f9fafb; color:#9ca3af; }
+.rag-pill-rcr { background:var(--lavender-bg); color:var(--plum-deep); }
+.rag-pill-landmark { background:#fef3c7; color:#92400e; }
+.rag-pill-sim { background:#f3f4f6; color:#6b7280; font-weight:500; font-family:Menlo,monospace; margin-left:auto; }
+a.pmid-pill { display:inline-block; padding:1px 7px; background:var(--lavender-bg); color:var(--plum-deep); border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; vertical-align:baseline; }
+a.pmid-pill:hover { background:var(--lavender-soft); }
+
 </style>
 </head>
 <body>
@@ -1974,7 +2003,7 @@ var SAMPLES = [
 ]; // __SAMPLES_MARKER__
 
 // ═══════════ STATE ═══════════
-var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, wantWebSearch:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false, showSaved:false, savedSearch:"", savedFlash:"", showExamples:false, isSampleTalk:false, sampleSlug:"", useByok:!(PROXY_CONFIG.enabled&&PROXY_CONFIG.url), rateRemaining:null, depth:"concise", sharedTalk:false, vmcOpen:false, tab:"overview", activeSection:0, gldOpen:false, lightbox:false, refineContext:"", editSettings:false, overflowOpen:false, reviseIn:"", user:null, session:null, profile:null, signInOpen:false, authBusy:false, authEmail:"", authMsg:"", authMode:"signin", accountMenuOpen:false, cloudTalks:[], cloudLoaded:false, profileEditOpen:false, profileForm:null, favorites:{} };
+var S = { topic:"", style:"lecture", files:[], loading:false, talk:null, error:"", sec:0, showLib:false, expCat:null, expSub:null, search:"", msgs:[], chatIn:"", chatBusy:false, dg:null, dgBusy:false, dgErr:"", dgMode:"ai", wantPod:false, wantWebSearch:false, podScript:"", podBusy:false, podPlaying:false, podRate:1, podShow:false, loadSec:0, loadMsg:"", showAns:false, userPick:"", showFeedback:false, feedbackText:"", feedbackBusy:false, glRef:null, critiqueStatus:"idle", critiqueResult:null, critiqueShow:false, showSaved:false, savedSearch:"", savedFlash:"", ragOpen:false, showExamples:false, isSampleTalk:false, sampleSlug:"", useByok:!(PROXY_CONFIG.enabled&&PROXY_CONFIG.url), rateRemaining:null, depth:"concise", sharedTalk:false, vmcOpen:false, tab:"overview", activeSection:0, gldOpen:false, lightbox:false, refineContext:"", editSettings:false, overflowOpen:false, reviseIn:"", user:null, session:null, profile:null, signInOpen:false, authBusy:false, authEmail:"", authMsg:"", authMode:"signin", accountMenuOpen:false, cloudTalks:[], cloudLoaded:false, profileEditOpen:false, profileForm:null, favorites:{} };
 
 // ═══════════ SUPABASE AUTH ═══════════
 window.onSupabaseReady = function(client){
@@ -2644,7 +2673,7 @@ async function retrieveRAG(topic, opts) {
     var r = await fetch(endpoint, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ query: topic, match_count: opts.match_count || 10 })
+      body: JSON.stringify({ query: topic, match_count: opts.match_count || 5 })
     });
     if (!r.ok) { console.warn("RAG retrieve failed: " + r.status); return {text: "", chunks: []}; }
     var data = await r.json();
@@ -2720,7 +2749,7 @@ async function generate(){
 
     // Step 1: Main generation with model fallback chain (Opus -> Sonnet -> Haiku)
     var mainOpts = {};
-    if (S.wantWebSearch) mainOpts.tools = [{type:"web_search_20250305",name:"web_search",max_uses:3}];
+    if (S.wantWebSearch) mainOpts.tools = [{type:"web_search_20250305",name:"web_search",max_uses:3,allowed_domains:["pubmed.ncbi.nlm.nih.gov","pmc.ncbi.nlm.nih.gov","ncbi.nlm.nih.gov","nih.gov","nhlbi.nih.gov","icite.od.nih.gov","medlineplus.gov","cdc.gov","uspreventiveservicestaskforce.org","fda.gov","dailymed.nlm.nih.gov","who.int","nice.org.uk","cochranelibrary.com","nejm.org","jamanetwork.com","thelancet.com","annals.org","bmj.com","ahajournals.org","jacc.org","escardio.org","acc.org","heart.org","asn-online.org","kidney-international.org","cjasn.asnjournals.org","ajkd.org","kdigo.org","atsjournals.org","chestnet.org","thoracic.org","gastrojournal.org","gut.bmj.com","gastro.org","aasld.org","idsociety.org","journals.asm.org","diabetes.org","endocrine.org","easd.org","ash.org","ashpublications.org","haematologica.org","asco.org","ascopubs.org","rheumatology.org","aaaai.org","aad.org","aan.com","psychiatry.org","americangeriatrics.org","aahpm.org","onlinelibrary.wiley.com","academic.oup.com","nature.com","sciencedirect.com","link.springer.com","cell.com","ahajournals.org"]}];
     var mainModels = [MODEL_MAIN, MODEL_SONNET_FALLBACK, MODEL_CRITIC];
     var maxTok=(S.style==="boards")?6144:4096;
     var mainResult = await callAPIWithFallback(sys, uc, maxTok, mainModels, mainOpts);
@@ -3124,6 +3153,96 @@ function diagSVG(dg){
 }
 
 // ═══════════ RENDER ═══════════
+
+// ═══════════ RAG SOURCES PANEL ═══════════
+function renderRAGSources() {
+  if (!S.ragChunks || !S.ragChunks.length) return '';
+  var chunks = S.ragChunks;
+  var n = chunks.length;
+  var citedSet = {};
+  if (S.talk) {
+    var talkText = JSON.stringify(S.talk);
+    for (var ci = 0; ci < chunks.length; ci++) {
+      var pmidc = chunks[ci].pmid;
+      if (pmidc && talkText.indexOf(pmidc) !== -1) citedSet[pmidc] = true;
+    }
+  }
+  var out = '<div class="rag-row ' + (S.ragOpen ? 'open' : '') + '">';
+  out += '<button class="rh-head" id="ragToggle">';
+  out += '<span style="font-size:14px">📑</span>';
+  out += '<span class="rh-count">' + n + ' retrieved source' + (n===1?'':'s') + '</span>';
+  if (!S.ragOpen) {
+    var chips = chunks.slice(0, 3).map(function(c){
+      var tt = c.title || '';
+      return esc(tt.length > 32 ? tt.slice(0, 32) + '…' : tt);
+    }).join(' · ');
+    out += '<span class="rh-chips">' + chips + '</span>';
+  } else {
+    out += '<span style="flex:1"></span>';
+  }
+  out += '<span class="rh-chev">⌄</span></button>';
+  if (S.ragOpen) {
+    out += '<div class="rh-body">';
+    for (var i = 0; i < chunks.length; i++) {
+      var c = chunks[i];
+      var tier = c.source_tier || 4;
+      var rcr = c.rcr;
+      var landmark = c.is_landmark_trial;
+      var sim = c.similarity;
+      var pmid = c.pmid;
+      var isCited = pmid && citedSet[pmid];
+      var authorsRaw = (c.authors || '').split(',').slice(0, 3).map(function(s){return s.trim()}).join(', ');
+      if (c.authors && c.authors.split(',').length > 3) authorsRaw += ' et al.';
+      out += '<div class="rag-card">';
+      out += '<div class="rc-head">';
+      out += '<span class="rag-pill rag-pill-tier' + tier + '">T' + tier + '</span>';
+      if (landmark) out += '<span class="rag-pill rag-pill-landmark">★ Landmark</span>';
+      if (rcr && rcr > 1) out += '<span class="rag-pill rag-pill-rcr">RCR ' + rcr.toFixed(1) + '</span>';
+      if (typeof sim === 'number') out += '<span class="rag-pill rag-pill-sim">' + sim.toFixed(2) + '</span>';
+      out += '</div>';
+      out += '<div class="rc-title">' + esc(c.title || '(untitled)') + '</div>';
+      out += '<div class="rc-meta">' + esc(authorsRaw) + (c.journal ? ' · ' + esc(c.journal) : '') + (c.year ? ' ' + c.year : '') + '</div>';
+      out += '<div class="rc-bottom">';
+      out += '<span class="' + (isCited ? 'rc-cited' : 'rc-uncited') + '">' + (isCited ? '✓ Cited in talk' : '○ Available context') + '</span>';
+      if (c.url) out += '<a class="rc-pub-link" href="' + esc(c.url) + '" target="_blank" rel="noopener">Open in PubMed →</a>';
+      out += '</div>';
+      out += '</div>';
+    }
+    out += '</div>';
+  }
+  out += '</div>';
+  return out;
+}
+
+
+function linkifyPMIDs(root) {
+  if (!root) return;
+  var re = /\bPMID:?\s*(\d{6,9})\b/g;
+  var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: function(node) {
+      if (!node.parentNode) return NodeFilter.FILTER_REJECT;
+      var p = node.parentNode;
+      if (p.tagName === 'A') return NodeFilter.FILTER_REJECT;
+      if (p.tagName === 'SCRIPT' || p.tagName === 'STYLE') return NodeFilter.FILTER_REJECT;
+      if (p.classList && p.classList.contains('pmid-pill')) return NodeFilter.FILTER_REJECT;
+      return re.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+  var nodes = [];
+  var node;
+  while ((node = walker.nextNode())) nodes.push(node);
+  for (var ni = 0; ni < nodes.length; ni++) {
+    var n = nodes[ni];
+    re.lastIndex = 0;
+    var html = n.nodeValue.replace(re, function(m, pmid){
+      return '<a href="https://pubmed.ncbi.nlm.nih.gov/' + pmid + '/" target="_blank" rel="noopener" class="pmid-pill">PMID ' + pmid + '</a>';
+    });
+    var wrap = document.createElement('span');
+    wrap.innerHTML = html;
+    if (n.parentNode) n.parentNode.replaceChild(wrap, n);
+  }
+}
+
 function render(){
   var root=document.getElementById("root");
   if(S.showExamples){root.innerHTML=renderExamples();bindExamples();return}
@@ -3437,6 +3556,9 @@ function renderMain(){
         if(S.gldOpen){h+='<div class="gr-body">';for(var gi=0;gi<glSources.length;gi++)h+='<span>'+esc(glSources[gi])+'</span>';h+='</div>'}
         h+='</div>';
       }
+
+      // === RAG sources panel ===
+      h+=renderRAGSources();
 
       // BOARDS view
       if(isBQ){
