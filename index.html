@@ -263,6 +263,19 @@ textarea,input[type=text]{font-family:inherit}
 a.pmid-pill { display:inline-block; padding:1px 7px; background:var(--lavender-bg); color:var(--plum-deep); border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; vertical-align:baseline; }
 a.pmid-pill:hover { background:var(--lavender-soft); }
 
+
+/* Compact RAG cards */
+.rag-row .rh-body { padding:0 12px 10px; gap:6px; }
+.rag-card { padding:7px 10px; }
+.rag-card .rc-head { margin-bottom:3px; gap:5px; }
+.rag-card .rc-title { font-size:12.5px; line-height:1.3; margin-bottom:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.rag-card .rc-meta { font-size:10.5px; margin-bottom:0; }
+.rag-pill { padding:0px 6px; font-size:9.5px; }
+.rag-pill-cited { background:#dcfce7; color:#166534; }
+.rag-pill-sim { margin-left:auto; }
+.rc-pub-inline { font-size:10.5px; color:var(--plum); text-decoration:none; font-weight:500; padding:0 4px; }
+.rc-pub-inline:hover { text-decoration:underline; }
+
 </style>
 </head>
 <body>
@@ -3168,13 +3181,13 @@ function renderRAGSources() {
     }
   }
   var out = '<div class="rag-row ' + (S.ragOpen ? 'open' : '') + '">';
-  out += '<button class="rh-head" id="ragToggle">';
+  out += '<button class="rh-head" onclick="S.ragOpen=!S.ragOpen;render();return false;">';
   out += '<span style="font-size:14px">📑</span>';
-  out += '<span class="rh-count">' + n + ' retrieved source' + (n===1?'':'s') + '</span>';
+  out += '<span class="rh-count">' + n + ' source' + (n===1?'':'s') + '</span>';
   if (!S.ragOpen) {
     var chips = chunks.slice(0, 3).map(function(c){
       var tt = c.title || '';
-      return esc(tt.length > 32 ? tt.slice(0, 32) + '…' : tt);
+      return esc(tt.length > 28 ? tt.slice(0, 28) + '…' : tt);
     }).join(' · ');
     out += '<span class="rh-chips">' + chips + '</span>';
   } else {
@@ -3191,21 +3204,19 @@ function renderRAGSources() {
       var sim = c.similarity;
       var pmid = c.pmid;
       var isCited = pmid && citedSet[pmid];
-      var authorsRaw = (c.authors || '').split(',').slice(0, 3).map(function(s){return s.trim()}).join(', ');
-      if (c.authors && c.authors.split(',').length > 3) authorsRaw += ' et al.';
+      var authorsRaw = (c.authors || '').split(',').slice(0, 2).map(function(s){return s.trim()}).join(', ');
+      if (c.authors && c.authors.split(',').length > 2) authorsRaw += ' et al.';
       out += '<div class="rag-card">';
       out += '<div class="rc-head">';
       out += '<span class="rag-pill rag-pill-tier' + tier + '">T' + tier + '</span>';
-      if (landmark) out += '<span class="rag-pill rag-pill-landmark">★ Landmark</span>';
+      if (landmark) out += '<span class="rag-pill rag-pill-landmark">★</span>';
       if (rcr && rcr > 1) out += '<span class="rag-pill rag-pill-rcr">RCR ' + rcr.toFixed(1) + '</span>';
+      if (isCited) out += '<span class="rag-pill rag-pill-cited">✓ Cited</span>';
       if (typeof sim === 'number') out += '<span class="rag-pill rag-pill-sim">' + sim.toFixed(2) + '</span>';
+      if (c.url) out += '<a class="rc-pub-inline" href="' + esc(c.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">PubMed →</a>';
       out += '</div>';
       out += '<div class="rc-title">' + esc(c.title || '(untitled)') + '</div>';
-      out += '<div class="rc-meta">' + esc(authorsRaw) + (c.journal ? ' · ' + esc(c.journal) : '') + (c.year ? ' ' + c.year : '') + '</div>';
-      out += '<div class="rc-bottom">';
-      out += '<span class="' + (isCited ? 'rc-cited' : 'rc-uncited') + '">' + (isCited ? '✓ Cited in talk' : '○ Available context') + '</span>';
-      if (c.url) out += '<a class="rc-pub-link" href="' + esc(c.url) + '" target="_blank" rel="noopener">Open in PubMed →</a>';
-      out += '</div>';
+      out += '<div class="rc-meta">' + esc(authorsRaw) + (c.journal ? ' · ' + esc(c.journal) : '') + (c.year ? ' · ' + c.year : '') + '</div>';
       out += '</div>';
     }
     out += '</div>';
@@ -3213,7 +3224,6 @@ function renderRAGSources() {
   out += '</div>';
   return out;
 }
-
 
 function linkifyPMIDs(root) {
   if (!root) return;
