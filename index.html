@@ -2686,7 +2686,7 @@ async function retrieveRAG(topic, opts) {
     var r = await fetch(endpoint, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ query: topic, match_count: opts.match_count || 5 })
+      body: JSON.stringify({ query: topic, match_count: opts.match_count || 8 })
     });
     if (!r.ok) { console.warn("RAG retrieve failed: " + r.status); return {text: "", chunks: []}; }
     var data = await r.json();
@@ -2697,7 +2697,7 @@ async function retrieveRAG(topic, opts) {
       if (c.authors && c.authors.split(",").length > 3) auths += " et al.";
       return "[" + (i+1) + "] " + (c.title || "(untitled)") + " — " + auths + ". " + (c.journal || "") + " " + (c.year || "") + ". PMID: " + (c.pmid || "n/a") + ".\nAbstract: " + (c.text || "");
     });
-    var text = "\n\n═══ RETRIEVED PUBMED SOURCES (real, verified citations — use these to ground your talk) ═══\nThese are REAL peer-reviewed sources retrieved by semantic similarity. When stating a clinical fact you may cite inline like (Pan 2022, PMID: 36371256). DO NOT invent PMIDs, authors, or trial names — only cite from these sources or omit. Prefer recent reviews and meta-analyses.\n\n" + lines.join("\n\n---\n\n") + "\n═══ END RETRIEVED SOURCES ═══";
+    var text = "\n\n═══ RETRIEVED PUBMED SOURCES (real, verified citations — use these to ground your talk) ═══\nThese are REAL peer-reviewed sources retrieved for THIS topic. CITATION RULE: When you state a specific clinical fact (number, threshold, rate, NNT, hazard ratio, drug dose, treatment efficacy, mortality, prognosis, guideline recommendation), cite a provided PMID inline using EXACTLY the format \"PMID 12345678\" — the word PMID followed by a space and the number, in running text where the fact is stated, no brackets, no colon. Aim for AT LEAST 3 inline PMID citations across the talk on the most quantitative/specific claims. NEVER invent PMIDs — only use PMIDs from the sources listed below. If a claim has no matching source here, teach it normally from your training but skip the citation for that claim. Use your full clinical knowledge for teaching; the sources are for citation grounding, not to replace your pedagogical voice.\n\n" + lines.join("\n\n---\n\n") + "\n═══ END RETRIEVED SOURCES ═══";
     return {text: text, chunks: chunks};
   } catch (e) {
     console.warn("RAG retrieve error: " + e.message);
